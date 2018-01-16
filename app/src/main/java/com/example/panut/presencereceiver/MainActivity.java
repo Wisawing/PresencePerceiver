@@ -40,7 +40,7 @@ public class MainActivity extends ListActivity {
 //    // Create a BroadcastReceiver for ACTION_FOUND.
 //    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
 //        public void onReceive(Context context, Intent intent) {
-//            String action = intent.getAction();
+//            String action = intent.getAction();`
 //            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 //                // Discovery has found a device. Get the BluetoothDevice
 //                // object and its info from the Intent.
@@ -72,9 +72,9 @@ public class MainActivity extends ListActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ActionBar actionBar = getActionBar();
-        if(actionBar != null)
-            actionBar.setTitle(R.string.title_devices);
+//        ActionBar actionBar = getActionBar();
+//        if(actionBar != null)
+//            actionBar.setTitle(R.string.title_devices);
 //        setContentView(R.layout.listitem_device);
 
         mHandler = new Handler();

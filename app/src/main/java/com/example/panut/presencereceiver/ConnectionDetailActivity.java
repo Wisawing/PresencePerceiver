@@ -18,7 +18,7 @@ public class ConnectionDetailActivity extends Activity implements Button.OnClick
     public static final String EXTRA_DEVICE_ADDRESS = "device_address";
 
     private String mDeviceName;
-    private String mDeviceAdress;
+    private String mDeviceAddress;
 
     private TextView mDeviceNameView;
     private TextView mDeviceAddressView;
@@ -35,7 +35,7 @@ public class ConnectionDetailActivity extends Activity implements Button.OnClick
 
         final Intent intent = getIntent();
         mDeviceName = intent.getStringExtra(EXTRA_DEVICE_NAME);
-        mDeviceAdress = intent.getStringExtra(EXTRA_DEVICE_ADDRESS);
+        mDeviceAddress = intent.getStringExtra(EXTRA_DEVICE_ADDRESS);
 
         mDeviceNameView = (TextView) findViewById(R.id.DeviceName);
         mDeviceAddressView = (TextView) findViewById(R.id.MacAdress);
@@ -44,7 +44,7 @@ public class ConnectionDetailActivity extends Activity implements Button.OnClick
         mConnectButton = (Button) findViewById(R.id.ConnectButton);
 
         mDeviceNameView.setText("Device : " + mDeviceName);
-        mDeviceAddressView.setText("Address : " + mDeviceAdress);
+        mDeviceAddressView.setText("Address : " + mDeviceAddress);
 
         mConnectButton.setOnClickListener(this);
 
