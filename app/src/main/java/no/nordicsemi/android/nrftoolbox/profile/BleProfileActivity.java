@@ -21,6 +21,7 @@
  */
 package no.nordicsemi.android.nrftoolbox.profile;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -30,8 +31,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import android.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -49,7 +49,7 @@ import com.example.panut.presencereceiver.R;
 import no.nordicsemi.android.nrftoolbox.scanner.ScannerFragment;
 import no.nordicsemi.android.nrftoolbox.utility.DebugLogger;
 
-public abstract class BleProfileActivity extends AppCompatActivity implements BleManagerCallbacks, ScannerFragment.OnDeviceSelectedListener {
+public abstract class BleProfileActivity extends Activity implements BleManagerCallbacks, ScannerFragment.OnDeviceSelectedListener {
 	private static final String TAG = "BaseProfileActivity";
 
 	private static final String SIS_CONNECTION_STATUS = "connection_status";
@@ -89,7 +89,7 @@ public abstract class BleProfileActivity extends AppCompatActivity implements Bl
 		onCreateView(savedInstanceState);
 
 		final Toolbar toolbar = findViewById(R.id.toolbar_actionbar);
-		setSupportActionBar(toolbar);
+		setActionBar(toolbar);
 
 		// Common nRF Toolbox view references are obtained here
 		setUpView();
@@ -126,7 +126,7 @@ public abstract class BleProfileActivity extends AppCompatActivity implements Bl
 	 */
 	protected final void setUpView() {
 		// set GUI
-		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+		getActionBar().setDisplayHomeAsUpEnabled(true);
 		mConnectButton = findViewById(R.id.action_connect);
 		mDeviceNameView = findViewById(R.id.device_name);
 		mBatteryLevelView = findViewById(R.id.battery);
@@ -184,7 +184,8 @@ public abstract class BleProfileActivity extends AppCompatActivity implements Bl
 				break;
 			case R.id.action_about:
 				final AppHelpFragment fragment = AppHelpFragment.getInstance(getAboutTextId());
-				fragment.show(getSupportFragmentManager(), "help_fragment");
+				fragment.show(getFragmentManager(), "help_fragment");
+
 				break;
 			default:
 				return onOptionsItemSelected(id);
@@ -271,7 +272,7 @@ public abstract class BleProfileActivity extends AppCompatActivity implements Bl
 		mBleManager.close();
 		runOnUiThread(() -> {
 			mConnectButton.setText(R.string.action_connect);
-			mDeviceNameView.setText(getDefaultDeviceName());
+//			mDeviceNameView.setText(getDefaultDeviceName());
 			mBatteryLevelView.setText(R.string.not_available);
 		});
 	}
@@ -407,7 +408,7 @@ public abstract class BleProfileActivity extends AppCompatActivity implements Bl
 	private void showDeviceScanningDialog(final UUID filter) {
 		runOnUiThread(() -> {
 			final ScannerFragment dialog = ScannerFragment.getInstance(filter);
-			dialog.show(getSupportFragmentManager(), "scan_fragment");
+			dialog.show(getFragmentManager(), "scan_fragment");
 		});
 	}
 

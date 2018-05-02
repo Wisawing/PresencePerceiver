@@ -184,7 +184,7 @@ public abstract class BleProfileExpandableListActivity extends ExpandableListAct
 				break;
 			case R.id.action_about:
 				final AppHelpFragment fragment = AppHelpFragment.getInstance(getAboutTextId());
-				fragment.show(getSupportFragmentManager(), "help_fragment");
+				fragment.show(getFragmentManager(), "help_fragment");
 				break;
 			default:
 				return onOptionsItemSelected(id);
@@ -407,7 +407,7 @@ public abstract class BleProfileExpandableListActivity extends ExpandableListAct
 	private void showDeviceScanningDialog(final UUID filter) {
 		runOnUiThread(() -> {
 			final ScannerFragment dialog = ScannerFragment.getInstance(filter);
-			dialog.show(getSupportFragmentManager(), "scan_fragment");
+			dialog.show(getFragmentManager(), "scan_fragment");
 		});
 	}
 
