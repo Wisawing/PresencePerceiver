@@ -196,7 +196,7 @@ public class ExpandableListActivity extends AppCompatActivity implements
 	@Override
 	public void onContentChanged() {
 		super.onContentChanged();
-		View emptyView = findViewById(R.id.empty);
+		View emptyView = findViewById(android.R.id.empty);
 		mList = findViewById(R.id.list);
 		if (mList == null) {
 			throw new RuntimeException(
