@@ -21,8 +21,5 @@
   ~ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   -->
 <resources>
-    
-    <string name="hts_feature_title_long">HEALTH THERMOMETER MONITOR</string>
-    <dimen name="hts_feature_title_long_margin">-236dp</dimen>
-    
+
 </resources>

@@ -20,7 +20,4 @@
   ~ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
   ~ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   -->
-<resources>
-    <string name="gls_feature_title_long">GLUCOSE MONITOR</string>
-    <dimen name="gls_feature_title_long_margin">-126dp</dimen>
-</resources>
+<resources></resources>

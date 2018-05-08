@@ -21,29 +21,5 @@
   ~ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   -->
 <resources>
-	<string name="proximity_feature_title">PROXIMITY</string>
 
-	<string name="proximity_feature_title_long">PROXIMITY MONITOR</string>
-	<dimen name="proximity_feature_title_long_margin">-142dp</dimen>
-
-	<string name="proximity_action_disconnect">Disconnect</string>
-	<string name="proximity_action_remove">Remove</string>
-	<string name="proximity_action_find">Find</string>
-	<string name="proximity_action_silent">Silent</string>
-	<string name="proximity_default_device_name">Proximity Tag</string>
-
-	<string name="proximity_notification_text_nothing_connected_one_disconnected">%s is disconnected.</string>
-	<string name="proximity_notification_text_nothing_connected_number_disconnected">%d is disconnected.</string>
-	<string name="proximity_notification_text">%s connected</string>
-	<string name="proximity_notification_summary_text_name">%s is connected.</string>
-	<string name="proximity_notification_summary_text_number">%d is connected.</string>
-	<string name="proximity_notification_linkloss_alert">%s is getting away!</string>
-
-	<string name="proximity_devices_title">YOUR TAGS</string>
-	<string name="proximity_server_error">GATT Server failed to start (error %d).</string>
-    
-    <string name="proximity_about_text">PROXIMITY profile allows you to connect to multiple Proximity sensors.
-        \nYou can find your valuables attached with Proximity tag by pressing the Locate button next to your device.
-		You can also find your phone by pressing relevant button on your tag.
-        \n\nYou may close this activity when connected without being disconnected from the sensors. A notification will be shown.</string>
 </resources>
