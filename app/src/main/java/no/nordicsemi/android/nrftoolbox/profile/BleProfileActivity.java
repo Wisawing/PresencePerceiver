@@ -31,6 +31,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v4.app.FragmentActivity;
 import android.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -49,7 +50,7 @@ import com.example.panut.presencereceiver.R;
 import no.nordicsemi.android.nrftoolbox.scanner.ScannerFragment;
 import no.nordicsemi.android.nrftoolbox.utility.DebugLogger;
 
-public abstract class BleProfileActivity extends Activity implements BleManagerCallbacks, ScannerFragment.OnDeviceSelectedListener {
+public abstract class BleProfileActivity extends FragmentActivity implements BleManagerCallbacks, ScannerFragment.OnDeviceSelectedListener {
 	private static final String TAG = "BaseProfileActivity";
 
 	private static final String SIS_CONNECTION_STATUS = "connection_status";

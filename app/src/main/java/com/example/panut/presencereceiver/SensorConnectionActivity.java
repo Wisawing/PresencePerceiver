@@ -1,8 +1,8 @@
 package com.example.panut.presencereceiver;
 
+import android.arch.lifecycle.ViewModelProviders;
 import android.bluetooth.BluetoothDevice;
 import android.content.pm.PackageManager;
-import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -11,15 +11,11 @@ import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Random;
 import java.util.UUID;
 
 import no.nordicsemi.android.nrftoolbox.profile.BleManager;
 import no.nordicsemi.android.nrftoolbox.profile.BleManagerCallbacks;
 import no.nordicsemi.android.nrftoolbox.profile.BleProfileActivity;
-import com.example.panut.presencereceiver.SignalManager;
-
-import static com.example.panut.presencereceiver.SignalManagerCallbacks.AccelData.VALUE_LENGTH;
 
 /**
  * Created by Panut on 15-Jan-18.
@@ -31,10 +27,12 @@ public class SensorConnectionActivity extends BleProfileActivity implements Sign
     private TextView _fpsView;
     private int count = -1;
     private long previousCountResetTime = 0;
-
-    private SoundOutput _soundOutput;
+    private long previousFrameTime = 0;
 
     private final Handler timeHandler = new Handler();
+
+    private AudioViewModel mAudioViewModel;
+    private AudioOutputControlFragment mAudioControlFragment;
 
     @Override
     protected void onResume()
@@ -83,14 +81,13 @@ public class SensorConnectionActivity extends BleProfileActivity implements Sign
 
         _accelTextview = findViewById(R.id.accelTextView);
         _fpsView = findViewById(R.id.fps_view);
-//        _soundOutput = new SoundOutput();
-//        _soundOutput.init();
 
-        soundData = new float[1024];
-        Random rand = new Random();
-        for(int i = 0; i < 1024; i++){
-            soundData[i] = rand.nextFloat();
-        }
+        mAudioControlFragment = (AudioOutputControlFragment) getSupportFragmentManager().findFragmentById(R.id.audio_output_fragment);
+
+        if(mAudioViewModel == null)
+            mAudioViewModel = ViewModelProviders.of(this).get(AudioViewModel.class);
+
+        mAudioViewModel.getAudioBuffer().observe(this, mAudioControlFragment);
     }
 
     @Override
@@ -124,16 +121,73 @@ public class SensorConnectionActivity extends BleProfileActivity implements Sign
     }
 
 
-    static float soundData[] = new float[1024];
-
+    private int freqIndex = 0;
+    private short maxValue = Short.MIN_VALUE;
+    private short minValue = Short.MAX_VALUE;
     @Override
     public void onAccelDataRead(AccelData data) {
-        String accel_str;
-        accel_str = data.value[0] + " - " + data.value[VALUE_LENGTH - 1];
-
         long currentTime = System.nanoTime();
-        float fps = (float)count/(currentTime - previousCountResetTime) * 1000000000;
+        float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
 
+
+        // number of sample according to sample rate
+        int nSample;
+        if(previousFrameTime == 0) { // first time still does not have a time period
+            nSample = data.value.length;
+        }
+        else {
+            nSample =(int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE) * 2;
+        }
+        previousFrameTime = currentTime;
+
+        // pre process data a bit
+        short pData[] = new short[nSample];
+        float dataSkipPerSample = (float)data.value.length/nSample;
+        float dataIndex = 0;
+
+        for(int i = 0; i < pData.length; i++){
+            short temp = (short)(data.value[(int)dataIndex] - 512); // move data to centered around 0
+
+            pData[i] = (short)(temp * 50); // blindly amplified
+//            pData[i] = 10000;
+
+            // from experiment raw data seems to be between 0 - 1024
+            // highest value from actual experiment is 6 - 1003
+            // try to see the min and max value of the data
+            maxValue = (short)Math.max(maxValue, pData[i]);
+            minValue = (short)Math.min(minValue, pData[i]);
+
+            dataIndex += dataSkipPerSample;
+        }
+
+        String accel_str;
+        accel_str = pData[0] + " - " + pData[pData.length - 1] + " : (" + minValue + " - " + maxValue + ")";
+
+        // This works!
+//        // debugging let's try code generated sound first
+//        final int nSample = 512;
+//        final int amp = 10000;
+//        final int freq = 100;
+//        short samples[] = new short[nSample];
+//
+//        for(int i = 0; i < nSample; i++){
+//            float sample_f = (float)Math.sin((freqIndex % freq) / (float)freq * Math.PI)*amp;
+//            short sample_s = (short)sample_f;
+//            samples[i] = sample_s;
+//
+//            freqIndex++;
+//        }
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mAudioViewModel.setAudioBuffer(pData);
+//                mAudioViewModel.setAudioBuffer(samples);
+            }
+        });
+
+
+        float fps = (float)count/(currentTime - previousCountResetTime) * 1000000000;
         // fps purpose
         if(count > 10){
             runOnUiThread(new Runnable() {
@@ -145,18 +199,10 @@ public class SensorConnectionActivity extends BleProfileActivity implements Sign
             });
         }
 
-
         if(count < 0 || count > 100) {
             count = 0;
             previousCountResetTime = System.nanoTime();
         }
         count++;
-
-//        float soundData[] = new float[3];
-//        soundData[0] = x/65535.f;
-//        soundData[1] = y/65535.f;
-//        soundData[2] = z/65535.f;
-
-//        _soundOutput.write(soundData, 1024);
     }
 }

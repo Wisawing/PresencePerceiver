@@ -90,7 +90,7 @@ public class SignalManager extends BleManager<SignalManagerCallbacks> {
             mAcceleration = null;
         }
 
-        short previousValue = 0;
+//        short previousValue = 0;
         long previousTime = 0;
         protected void parseAccelValue(BluetoothGattCharacteristic characteristic)
         {
@@ -119,16 +119,16 @@ public class SignalManager extends BleManager<SignalManagerCallbacks> {
                 value = (short)(value | (data[i+1] & 0xff));
 
                 values[i/2] = value;
-                if(value != previousValue + 1) {
-                    Log.d("Monitor", "disconnected data for " + (System.nanoTime()-previousTime)/1000000 + " ms : " + previousValue + ", " + value);
-                }
+//                if(value != previousValue + 1) {
+//                    Log.d("Monitor", "disconnected data for " + (System.nanoTime()-previousTime)/1000000 + " ms : " + previousValue + ", " + value);
+//                }
 
 //                System.out.print(value + ":");
 //                System.out.print("(" + data[i] + ", ");
 //                System.out.print(data[i+1] + "), ");
 
-                previousValue = value;
-                previousTime = System.nanoTime();
+//                previousValue = value;
+//                previousTime = System.nanoTime();
             }
 
             mCallbacks.onAccelDataRead(new SignalManagerCallbacks.AccelData(values));

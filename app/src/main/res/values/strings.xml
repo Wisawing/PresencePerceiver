@@ -22,7 +22,7 @@
   -->
 <resources>
 
-	<string name="app_name">nRF Toolbox</string>
+	<string name="app_name">Presence Receiver</string>
 
 	<string name="ok">OK</string>
 
