@@ -146,10 +146,11 @@ public class SensorConnectionActivity extends BleProfileActivity implements Sign
         float dataIndex = 0;
 
         for(int i = 0; i < pData.length; i++){
-            short temp = (short)(data.value[(int)dataIndex] - 512); // move data to centered around 0
+            short temp = data.value[(int)dataIndex];
 
-            pData[i] = (short)(temp * 50); // blindly amplified
+            pData[i] = (short)(temp*2); // blindly amplified
 //            pData[i] = 10000;
+
 
             // from experiment raw data seems to be between 0 - 1024
             // highest value from actual experiment is 6 - 1003
