@@ -11,94 +11,31 @@
         android:id="@+id/toolbar_actionbar"
         layout="@layout/toolbar"/>
 
-    <Button
-        android:id="@+id/action_connect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:onClick="onConnectClicked"
-        android:text="Connect"
-        app:layout_constraintBottom_toTopOf="@+id/audio_output_fragment"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView" />
-
-    <TextView
-        android:id="@+id/battery"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_marginLeft="@dimen/feature_horizontal_margin"
-        android:layout_marginTop="@dimen/feature_device_name_margin_top"
-        android:background="@drawable/battery"
-        android:freezesText="true"
-        android:gravity="center"
-        android:text="@string/not_available"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"/>
-
-    <TextView
-        android:id="@+id/device_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="10dp"
-        android:layout_marginTop="@dimen/feature_device_name_margin_top"
-        android:layout_toRightOf="@+id/battery"
-        android:ellipsize="end"
-        android:freezesText="true"
-        android:maxLines="1"
-        android:text=""
-        android:textAllCaps="true"
-        android:textAppearance="?android:attr/textAppearanceLarge"/>
-
-    <TextView
-        android:id="@+id/accelTextView"
-        android:layout_width="wrap_content"
+    <fragment
+        android:id="@+id/sensor_connection_fragment"
+        android:name="com.example.panut.presencereceiver.SensorConnectionFragment"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text="TextView"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/toolbar_actionbar" />
-
-    <TextView
-        android:id="@+id/fps_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:text="TextView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/accelTextView" />
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:text="TextView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/fps_view" />
 
     <fragment
         android:id="@+id/audio_output_fragment"
         android:name="com.example.panut.presencereceiver.AudioOutputControlFragment"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/sensor_connection_fragment" />
 
 </android.support.constraint.ConstraintLayout>

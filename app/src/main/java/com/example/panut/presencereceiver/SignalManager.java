@@ -24,7 +24,7 @@ import static com.example.panut.presencereceiver.SignalManagerCallbacks.AccelDat
 
 public class SignalManager extends BleManager<SignalManagerCallbacks> {
 
-    private static SignalManager managerInstance;
+//    private static SignalManager managerInstance;
 
 //    private TextView _accelTextview;
 
@@ -50,11 +50,13 @@ public class SignalManager extends BleManager<SignalManagerCallbacks> {
 
     public static SignalManager getSignalManager(Context applicationContext)
     {
-        if(managerInstance == null) {
-            managerInstance = new SignalManager(applicationContext);
-        }
-
-        return managerInstance;
+//        if(managerInstance == null) {
+//            managerInstance = new SignalManager(applicationContext);
+//        }
+//
+//        return managerInstance;
+        // TODO should just call normal constructor.
+        return new SignalManager(applicationContext);
     }
 
 

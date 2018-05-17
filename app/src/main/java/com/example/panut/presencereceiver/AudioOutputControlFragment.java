@@ -99,6 +99,8 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
             .build();
 
         mAudioViewModel = ViewModelProviders.of(getActivity()).get(AudioViewModel.class);
+//        mAudioViewModel.getAudioBuffer(this).observe(this, mAudioControlFragment);
+
         mHandler = new Handler();
         mPlayState = PlayState.STOP;
     }

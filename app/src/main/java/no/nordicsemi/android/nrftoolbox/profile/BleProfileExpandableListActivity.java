@@ -129,7 +129,7 @@ public abstract class BleProfileExpandableListActivity extends ExpandableListAct
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 		mConnectButton = findViewById(R.id.action_connect);
 		mDeviceNameView = findViewById(R.id.device_name);
-		mBatteryLevelView = findViewById(R.id.battery);
+//		mBatteryLevelView = findViewById(R.id.battery);
 	}
 
 	@Override

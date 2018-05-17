@@ -130,7 +130,7 @@ public abstract class BleProfileActivity extends FragmentActivity implements Ble
 		getActionBar().setDisplayHomeAsUpEnabled(true);
 		mConnectButton = findViewById(R.id.action_connect);
 		mDeviceNameView = findViewById(R.id.device_name);
-		mBatteryLevelView = findViewById(R.id.battery);
+//		mBatteryLevelView = findViewById(R.id.battery);
 	}
 
 	@Override
