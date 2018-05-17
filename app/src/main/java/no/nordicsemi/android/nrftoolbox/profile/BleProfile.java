@@ -21,75 +21,60 @@
  */
 package no.nordicsemi.android.nrftoolbox.profile;
 
-import android.app.Fragment;
-import android.bluetooth.BluetoothAdapter;
+import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.view.LayoutInflater;
-import android.view.ViewGroup;
-import android.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
+
+import com.example.panut.presencereceiver.R;
+import com.example.panut.presencereceiver.SensorConnection;
 
 import java.util.UUID;
 
 import no.nordicsemi.android.log.ILogSession;
-import no.nordicsemi.android.log.LocalLogSession;
-import no.nordicsemi.android.log.Logger;
-import no.nordicsemi.android.nrftoolbox.AppHelpFragment;
-import com.example.panut.presencereceiver.R;
 import no.nordicsemi.android.nrftoolbox.scanner.ScannerFragment;
 import no.nordicsemi.android.nrftoolbox.utility.DebugLogger;
 
-public abstract class BleProfileFragment extends Fragment implements BleManagerCallbacks, ScannerFragment.OnDeviceSelectedListener {
+public abstract class BleProfile implements BleManagerCallbacks {
+
     private static final String TAG = "BaseProfileActivity";
+    private static int uniqueID = 1;
 
     private static final String SIS_CONNECTION_STATUS = "connection_status";
     private static final String SIS_DEVICE_NAME = "device_name";
-    protected static final int REQUEST_ENABLE_BT = 2;
 
     private BleManager<? extends BleManagerCallbacks> mBleManager;
+    protected Activity mContext;
 
-    private View mRootView;
-    private TextView mDeviceNameView;
-//    private TextView mBatteryLevelView;
-    private Button mConnectButton;
+    // TODO move ui out of here
+//    private View mRootView;
+//    private TextView mDeviceNameView;
+////    private TextView mBatteryLevelView;
+//    private Button mConnectButton;
+
+
     private ILogSession mLogSession;
 
     private boolean mDeviceConnected = false;
     private String mDeviceName;
+    private int id;
 
-    @Override
-    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        mRootView = view;
+//    @Override
+//    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+//        super.onViewCreated(view, savedInstanceState);
+//        mRootView = view;
+//
+//        mConnectButton = mRootView.findViewById(R.id.action_connect);
+//        mDeviceNameView = mRootView.findViewById(R.id.device_name);
+//
+//        mConnectButton.setOnClickListener(this::onConnectClicked);
+//    }
 
-        mConnectButton = mRootView.findViewById(R.id.action_connect);
-        mDeviceNameView = mRootView.findViewById(R.id.device_name);
-
-        mConnectButton.setOnClickListener(this::onConnectClicked);
-    }
-
-    @Override
-    public void onCreate(final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        ensureBLESupported();
-        if (!isBLEEnabled()) {
-            showBLEDialog();
-        }
-
+    public BleProfile(Activity context) {
+        mContext = context;
         /*
          * We use the managers using a singleton pattern. It's not recommended for the Android, because the singleton instance remains after Activity has been
          * destroyed but it's simple and is used only for this demo purpose. In final application Managers should be created as a non-static objects in
@@ -98,8 +83,10 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
          */
         mBleManager = initializeManager();
 
+        id = uniqueID++;
+
         // In onInitialize method a final class may register local broadcast receivers that will listen for events from the service
-        onInitialize(savedInstanceState);
+        onInitialize();
 //        // The onCreateView class should... create the view
 //        onCreateView(savedInstanceState);
 
@@ -113,35 +100,11 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
     }
 
     /**
-     * You may do some initialization here. This method is called from {@link #onCreate(Bundle)} before the view was created.
+     * You may do some initialization here. This method is called from {@link #BleProfile(Activity)} before the view was created.
      */
-    protected void onInitialize(final Bundle savedInstanceState) {
+    protected void onInitialize() {
         // empty default implementation
     }
-
-//    /**
-//     * Called from {@link #onCreate(Bundle)}. This method should build the activity UI, f.e. using {@link #getActivity().setContentView(int)}. Use to obtain references to
-//     * views. Connect/Disconnect button, the device name view and battery level view are manager automatically.
-//     *
-//     * @param savedInstanceState contains the data it most recently supplied in {@link #onSaveInstanceState(Bundle)}. Note: <b>Otherwise it is null</b>.
-//     */
-//    protected abstract void onCreateView(final Bundle savedInstanceState);
-
-//    @Nullable
-//    @Override
-//    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
-//
-//        return super.onCreateView(inflater, container, savedInstanceState);
-//    }
-
-//    /**
-//     * Called after the view has been created.
-//     *
-//     * @param savedInstanceState contains the data it most recently supplied in {@link #onSaveInstanceState(Bundle)}. Note: <b>Otherwise it is null</b>.
-//     */
-//    protected void onViewCreated(final Bundle savedInstanceState) {
-//        // empty default implementation
-//    }
 
 //    /**
 //     * Called after the view and the toolbar has been created.
@@ -163,9 +126,9 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
 //        super.onBackPressed();
 //    }
 
-    @Override
+    // must be called from outside to work. does not get called automatically.
     public void onSaveInstanceState(final Bundle outState) {
-        super.onSaveInstanceState(outState);
+//        super.onSaveInstanceState(outState);
         outState.putBoolean(SIS_CONNECTION_STATUS, mDeviceConnected);
         outState.putString(SIS_DEVICE_NAME, mDeviceName);
     }
@@ -189,16 +152,16 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
 //        return true;
 //    }
 
-    /**
-     * Use this method to handle menu actions other than home and about.
-     *
-     * @param itemId the menu item id
-     * @return <code>true</code> if action has been handled
-     */
-    protected boolean onOptionsItemSelected(final int itemId) {
-        // Overwrite when using menu other than R.menu.help
-        return false;
-    }
+//    /**
+//     * Use this method to handle menu actions other than home and about.
+//     *
+//     * @param itemId the menu item id
+//     * @return <code>true</code> if action has been handled
+//     */
+//    protected boolean onOptionsItemSelected(final int itemId) {
+//        // Overwrite when using menu other than R.menu.help
+//        return false;
+//    }
 
 //    @Override
 //    public boolean onOptionsItemSelected(final MenuItem item) {
@@ -218,21 +181,6 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
 //        return true;
 //    }
 
-    /**
-     * Called when user press CONNECT or DISCONNECT button. See layout files -> onClick attribute.
-     */
-    public void onConnectClicked(final View view) {
-        if (isBLEEnabled()) {
-            if (!mDeviceConnected) {
-                setDefaultUI();
-                showDeviceScanningDialog(getFilterUUID());
-            } else {
-                mBleManager.disconnect();
-            }
-        } else {
-            showBLEDialog();
-        }
-    }
 
     /**
      * Returns the title resource id that will be used to create logger session. If 0 is returned (default) logger will not be used.
@@ -252,54 +200,61 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
         return null;
     }
 
-    @Override
-    public void onDeviceSelected(final BluetoothDevice device, final String name) {
-        final int titleId = getLoggerProfileTitle();
-        if (titleId > 0) {
-            mLogSession = Logger.newSession(getActivity().getApplicationContext(), getString(titleId), device.getAddress(), name);
-            // If nRF Logger is not installed we may want to use local logger
-            if (mLogSession == null && getLocalAuthorityLogger() != null) {
-                mLogSession = LocalLogSession.newSession(getActivity().getApplicationContext(), getLocalAuthorityLogger(), device.getAddress(), name);
-            }
-        }
-        mDeviceName = name;
+    public static SensorConnection createConnection(final BluetoothDevice device, final Activity context) {
+        SensorConnection connection = new SensorConnection(context);
+
+        connection.connect(device);
+
+        return connection;
+    }
+
+    public void connect(final BluetoothDevice device) {
+        mBleManager.connect(device);
+
+        // TODO handle these log?
+//        final int titleId = getLoggerProfileTitle();
+//        if (titleId > 0) {
+//            mLogSession = Logger.newSession(getActivity().getApplicationContext(), getString(titleId), device.getAddress(), name);
+//            // If nRF Logger is not installed we may want to use local logger
+//            if (mLogSession == null && getLocalAuthorityLogger() != null) {
+//                mLogSession = LocalLogSession.newSession(getActivity().getApplicationContext(), getLocalAuthorityLogger(), device.getAddress(), name);
+//            }
+//        }
+
+        mDeviceName = device.getName();
         mBleManager.setLogger(mLogSession);
         mBleManager.connect(device);
     }
 
-    @Override
-    public void onDialogCanceled() {
-        // do nothing
-    }
-
+    // TODO update ui
     @Override
     public void onDeviceConnecting(final BluetoothDevice device) {
-        getActivity().runOnUiThread(() -> {
-            mDeviceNameView.setText(mDeviceName != null ? mDeviceName : getString(R.string.not_available));
-            mConnectButton.setText(R.string.action_connecting);
-        });
+//        getActivity().runOnUiThread(() -> {
+//            mDeviceNameView.setText(mDeviceName != null ? mDeviceName : getString(R.string.not_available));
+//            mConnectButton.setText(R.string.action_connecting);
+//        });
     }
 
     @Override
     public void onDeviceConnected(final BluetoothDevice device) {
         mDeviceConnected = true;
-        getActivity().runOnUiThread(() -> mConnectButton.setText(R.string.action_disconnect));
+//        getActivity().runOnUiThread(() -> mConnectButton.setText(R.string.action_disconnect));
     }
 
     @Override
     public void onDeviceDisconnecting(final BluetoothDevice device) {
-        getActivity().runOnUiThread(() -> mConnectButton.setText(R.string.action_disconnecting));
+//        getActivity().runOnUiThread(() -> mConnectButton.setText(R.string.action_disconnecting));
     }
 
     @Override
     public void onDeviceDisconnected(final BluetoothDevice device) {
         mDeviceConnected = false;
         mBleManager.close();
-        getActivity().runOnUiThread(() -> {
-            mConnectButton.setText(R.string.action_connect);
-			mDeviceNameView.setText(getDefaultDeviceName());
-//            mBatteryLevelView.setText(R.string.not_available);
-        });
+//        getActivity().runOnUiThread(() -> {
+//            mConnectButton.setText(R.string.action_connect);
+//			mDeviceNameView.setText(getDefaultDeviceName());
+////            mBatteryLevelView.setText(R.string.not_available);
+//        });
     }
 
     @Override
@@ -356,13 +311,14 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
         showToast(R.string.not_supported);
     }
 
+
     /**
      * Shows a message as a Toast notification. This method is thread safe, you can call it from any thread
      *
      * @param message a message to be shown
      */
     protected void showToast(final String message) {
-        getActivity().runOnUiThread(() -> Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show());
+        ((Activity)mContext).runOnUiThread(() -> Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show());
     }
 
     /**
@@ -371,7 +327,7 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
      * @param messageResId an resource id of the message to be shown
      */
     protected void showToast(final int messageResId) {
-        getActivity().runOnUiThread(() -> Toast.makeText(getActivity(), messageResId, Toast.LENGTH_SHORT).show());
+        ((Activity)mContext).runOnUiThread(() -> Toast.makeText(mContext, messageResId, Toast.LENGTH_SHORT).show());
     }
 
     /**
@@ -395,46 +351,34 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
      */
     protected abstract BleManager<? extends BleManagerCallbacks> initializeManager();
 
-    /**
-     * Restores the default UI before reconnecting
-     */
-    protected abstract void setDefaultUI();
+//    /**
+//     * Restores the default UI before reconnecting
+//     */
+//    protected abstract void setDefaultUI();
+//
+//    /**
+//     * Returns the default device name resource id. The real device name is obtained when connecting to the device. This one is used when device has
+//     * disconnected.
+//     *
+//     * @return the default device name resource id
+//     */
+//    protected abstract int getDefaultDeviceName();
+//
+//    /**
+//     * Returns the string resource id that will be shown in About box
+//     *
+//     * @return the about resource id
+//     */
+//    protected abstract int getAboutTextId();
+//
+//    /**
+//     * The UUID filter is used to filter out available devices that does not have such UUID in their advertisement packet.
+//     *
+//     * @return the required UUID or <code>null</code>
+//     */
+//    protected abstract UUID getFilterUUID();
 
-    /**
-     * Returns the default device name resource id. The real device name is obtained when connecting to the device. This one is used when device has
-     * disconnected.
-     *
-     * @return the default device name resource id
-     */
-    protected abstract int getDefaultDeviceName();
 
-    /**
-     * Returns the string resource id that will be shown in About box
-     *
-     * @return the about resource id
-     */
-    protected abstract int getAboutTextId();
-
-    /**
-     * The UUID filter is used to filter out available devices that does not have such UUID in their advertisement packet.
-     *
-     * @return the required UUID or <code>null</code>
-     */
-    protected abstract UUID getFilterUUID();
-
-    /**
-     * Shows the scanner fragment.
-     *
-     * @param filter               the UUID filter used to filter out available devices. The fragment will always show all bonded devices as there is no information about their
-     *                             services
-     * @see #getFilterUUID()
-     */
-    private void showDeviceScanningDialog(final UUID filter) {
-        getActivity().runOnUiThread(() -> {
-            final ScannerFragment dialog = ScannerFragment.getInstance(filter);
-            dialog.show(getFragmentManager(), "scan_fragment");
-        });
-    }
 
     /**
      * Returns the log session. Log session is created when the device was selected using the {@link ScannerFragment} and released when user press DISCONNECT.
@@ -445,21 +389,4 @@ public abstract class BleProfileFragment extends Fragment implements BleManagerC
         return mLogSession;
     }
 
-    private void ensureBLESupported() {
-        if (!getActivity().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-            Toast.makeText(getActivity(), R.string.no_ble, Toast.LENGTH_LONG).show();
-            getActivity().finish();
-        }
-    }
-
-    protected boolean isBLEEnabled() {
-        final BluetoothManager bluetoothManager = (BluetoothManager) getActivity().getSystemService(Context.BLUETOOTH_SERVICE);
-        final BluetoothAdapter adapter = bluetoothManager.getAdapter();
-        return adapter != null && adapter.isEnabled();
-    }
-
-    protected void showBLEDialog() {
-        final Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-        startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
-    }
 }

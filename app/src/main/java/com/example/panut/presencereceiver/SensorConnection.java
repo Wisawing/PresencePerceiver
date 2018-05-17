@@ -1,20 +1,14 @@
 package com.example.panut.presencereceiver;
 
-import android.arch.lifecycle.MutableLiveData;
+import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
 import android.bluetooth.BluetoothDevice;
-import android.content.pm.PackageManager;
-import android.os.Bundle;
 import android.os.Handler;
-import android.provider.MediaStore;
-import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -22,41 +16,57 @@ import java.util.UUID;
 
 import no.nordicsemi.android.nrftoolbox.profile.BleManager;
 import no.nordicsemi.android.nrftoolbox.profile.BleManagerCallbacks;
-import no.nordicsemi.android.nrftoolbox.profile.BleProfileActivity;
-import no.nordicsemi.android.nrftoolbox.profile.BleProfileFragment;
+import no.nordicsemi.android.nrftoolbox.profile.BleProfile;
 
 /**
  * Created by Panut on 15-Jan-18.
  */
 
 
-public class SensorConnectionFragment extends BleProfileFragment implements SignalManagerCallbacks {
+public class SensorConnection extends BleProfile implements SignalManagerCallbacks {
 
-    private TextView _accelTextview;
-    private TextView _fpsView;
+//    static public class ConnectionViews {
+//        public TextView deviceNameView;
+//        public TextView dataView;
+//        public TextView fpsView;
+//        public Button disconnectButton;
+//    }
+
+//    private TextView _accelTextview;
+//    private TextView _fpsView;
     private int count = -1;
     private long previousCountResetTime = 0;
     private long previousFrameTime = 0;
 
     private final Handler timeHandler = new Handler();
+//    private ConnectionViews mConnectionUI;
+    private View mRootView;
+    private TextView mDeviceNameView;
+    private TextView mDataView;
+    private TextView mFpsView;
+    private Button mDisconnectButton;
 
     private AudioViewModel mAudioViewModel;
-//    private MutableLiveData<AudioViewModel.AudioData> buffer;
 
-    // TODO : Sensor connection should be done in service. See {@link BleProfileServiceReadyActivity}
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        AudioViewModel audioViewModel = ViewModelProviders.of((FragmentActivity)getActivity()).get(AudioViewModel.class);
-        audioViewModel.getAudioBuffer(this);
+    private void createView(){
+        mRootView = View.inflate(mContext, R.layout.device_connection_list_item, null);
+        mDeviceNameView = mRootView.findViewById(R.id.device_name);
+        mDataView = mRootView.findViewById(R.id.device_data);
+        mFpsView = mRootView.findViewById(R.id.fps);
+        mDisconnectButton = mRootView.findViewById(R.id.disconnect_button);
     }
 
-    @Override
-    public void onResume()
-    {
-        super.onResume();
+    public SensorConnection(Activity context) {
+        super(context);
+
+        AudioViewModel audioViewModel = ViewModelProviders.of((FragmentActivity)mContext).get(AudioViewModel.class);
+        audioViewModel.getAudioBuffer(this);
+
+        createView();
+    }
+
+    public View getView() {
+        return mRootView;
     }
 
     @Override
@@ -88,48 +98,55 @@ public class SensorConnectionFragment extends BleProfileFragment implements Sign
         keepLog();
 
         Log.d("Monitor", "Device Connected : " + device.getName());
+
+        mContext.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mDeviceNameView.setText(device.getName());
+            }
+        });
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
-        View v = inflater.inflate(R.layout.fragment_sensor_connection, container);
-
-        _accelTextview = v.findViewById(R.id.accelTextView);
-        _fpsView = v.findViewById(R.id.fps_view);
-
-        return v;
-    }
+//    @Nullable
+//    @Override
+//    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
+//        View v = inflater.inflate(R.layout.fragment_sensor_connection, container);
+//
+//        _accelTextview = v.findViewById(R.id.accelTextView);
+//        _fpsView = v.findViewById(R.id.fps_view);
+//
+//        return v;
+//    }
 
     @Override
     protected BleManager<? extends BleManagerCallbacks> initializeManager()
     {
-        final SignalManager signalManager = SignalManager.getSignalManager(getActivity().getApplicationContext());
+        final SignalManager signalManager = SignalManager.getSignalManager(mContext.getApplicationContext());
         signalManager.setGattCallbacks(this);
 ////        signalManager.SetAccelTextView(_accelTextview);
 
         return signalManager;
     }
 
-    @Override
-    protected void setDefaultUI() {
-        _accelTextview.setText("x, y, z");
-    }
-
-    @Override
-    protected int getDefaultDeviceName() {
-        return R.string.accel_default_name;
-    }
-
-    @Override
-    protected int getAboutTextId() {
-        return R.string.about_text;
-    }
-
-    @Override
-    protected UUID getFilterUUID() {
-        return SignalManager.ACCEL_SERVICE_UUID;
-    }
+//    @Override
+//    protected void setDefaultUI() {
+////        _accelTextview.setText("x, y, z");
+//    }
+//
+//    @Override
+//    protected int getDefaultDeviceName() {
+//        return R.string.accel_default_name;
+//    }
+//
+//    @Override
+//    protected int getAboutTextId() {
+//        return R.string.about_text;
+//    }
+//
+//    @Override
+//    protected UUID getFilterUUID() {
+//        return SignalManager.ACCEL_SERVICE_UUID;
+//    }
 
 
     private int freqIndex = 0;
@@ -194,20 +211,19 @@ public class SensorConnectionFragment extends BleProfileFragment implements Sign
 //        runOnUiThread(new Runnable() {
 //            @Override
 //            public void run() {
-                mAudioViewModel.setAudioBuffer(pData, this);
+//                mAudioViewModel.setAudioBuffer(pData, this);
 //                mAudioViewModel.setAudioBuffer(samples);
 //            }
 //        });
 
-
         float fps = (float)count/(currentTime - previousCountResetTime) * 1000000000;
         // fps purpose
-        if(count > 10){
-            getActivity().runOnUiThread(new Runnable() {
+        if(count > 10 && mRootView != null){
+            mContext.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    _fpsView.setText(fps + "");
-                    _accelTextview.setText(accel_str);
+                    mDataView.setText(accel_str);
+                    mFpsView.setText(fps + "");
                 }
             });
         }

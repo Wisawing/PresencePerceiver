@@ -50,12 +50,6 @@ public class SignalManager extends BleManager<SignalManagerCallbacks> {
 
     public static SignalManager getSignalManager(Context applicationContext)
     {
-//        if(managerInstance == null) {
-//            managerInstance = new SignalManager(applicationContext);
-//        }
-//
-//        return managerInstance;
-        // TODO should just call normal constructor.
         return new SignalManager(applicationContext);
     }
 
