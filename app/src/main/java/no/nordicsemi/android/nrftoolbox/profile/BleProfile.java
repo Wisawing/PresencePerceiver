@@ -41,7 +41,6 @@ import no.nordicsemi.android.nrftoolbox.utility.DebugLogger;
 public abstract class BleProfile implements BleManagerCallbacks {
 
     private static final String TAG = "BaseProfileActivity";
-    private static int uniqueID = 1;
 
     private static final String SIS_CONNECTION_STATUS = "connection_status";
     private static final String SIS_DEVICE_NAME = "device_name";
@@ -60,7 +59,6 @@ public abstract class BleProfile implements BleManagerCallbacks {
 
     private boolean mDeviceConnected = false;
     private String mDeviceName;
-    private int id;
 
 //    @Override
 //    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
@@ -82,8 +80,6 @@ public abstract class BleProfile implements BleManagerCallbacks {
          * broadcast listeners, local broadcast listeners (see support.v4 library), or messages. See the Proximity profile for Service approach.
          */
         mBleManager = initializeManager();
-
-        id = uniqueID++;
 
         // In onInitialize method a final class may register local broadcast receivers that will listen for events from the service
         onInitialize();
@@ -200,14 +196,6 @@ public abstract class BleProfile implements BleManagerCallbacks {
         return null;
     }
 
-    public static SensorConnection createConnection(final BluetoothDevice device, final Activity context) {
-        SensorConnection connection = new SensorConnection(context);
-
-        connection.connect(device);
-
-        return connection;
-    }
-
     public void connect(final BluetoothDevice device) {
         mBleManager.connect(device);
 
@@ -224,6 +212,10 @@ public abstract class BleProfile implements BleManagerCallbacks {
         mDeviceName = device.getName();
         mBleManager.setLogger(mLogSession);
         mBleManager.connect(device);
+    }
+
+    public void disconnect() {
+        mBleManager.disconnect();
     }
 
     // TODO update ui

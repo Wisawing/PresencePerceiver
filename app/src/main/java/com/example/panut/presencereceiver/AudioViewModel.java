@@ -1,9 +1,7 @@
 package com.example.panut.presencereceiver;
 
-import android.arch.lifecycle.LifecycleOwner;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
-import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModel;
 
 import java.util.HashMap;
@@ -14,19 +12,18 @@ import java.util.HashMap;
 
 public class AudioViewModel extends ViewModel {
 
+    public interface OnBufferChangedListener {
+        void onNewBuffer(Object bufferOwner, LiveData<AudioData> buffer);
+        void onBufferDeleted(Object bufferOwner);
+    }
+
     public class AudioData {
-        public int id;
+        public Object owner;
         public short buffer[];
     }
 
     private HashMap<Object, MutableLiveData<AudioData>> mAudioBuffers;
-
-//    public LiveData<Queue<Short>> getAudioBuffer(){
-//        if(mAudioBuffer == null)
-//            mAudioBuffer = new MutableLiveData<Queue<Short>>();
-//
-//        return mAudioBuffer;
-//    }
+    private OnBufferChangedListener mBufferChangedListener;
 
     // TODO this method is a bit odd. It currently both init and getter in the same method. refactoring recommended
     // make sure for this owner has already existed
@@ -42,26 +39,41 @@ public class AudioViewModel extends ViewModel {
             mAudioBuffers.put(owner, buffer);
         }
 
-        return buffer;
-    }
-
-    public LiveData<AudioData> getAudioBuffer(Object owner){
-
-        LiveData<AudioData> buffer = initializeBuffer(owner);
+        mBufferChangedListener.onNewBuffer(owner, buffer);
 
         return buffer;
     }
 
-    public void observeAllBuffer(LifecycleOwner observerOwner, Observer<AudioData> observer) {
+    public void setBufferChangedListener(OnBufferChangedListener bufferChangedListener) {
+        this.mBufferChangedListener = bufferChangedListener;
+    }
+
+    public void removeBuffer(Object owner) {
+        mAudioBuffers.remove(owner);
+        mBufferChangedListener.onBufferDeleted(owner);
 
     }
 
+//    public LiveData<AudioData> getAudioBuffer(Object owner){
+//
+//        LiveData<AudioData> buffer = initializeBuffer(owner);
+//
+//        return buffer;
+//    }
 
-    public void setAudioBuffer(short[] audioData, Object owner){
+//    public void observeAllBuffer(LifecycleOwner observerOwner, Observer<AudioData> observer) {
+//        for(Map.Entry<Object, MutableLiveData<AudioData>> iEntry : mAudioBuffers.entrySet()){
+//            iEntry.getValue().observe(observerOwner, observer);
+//        }
+//    }
+
+
+    public void writeAudioBuffer(short[] audioData, Object owner){
         MutableLiveData<AudioData> liveBuffer = mAudioBuffers.get(owner);
 
         AudioData data = new AudioData();
         data.buffer = audioData;
+        data.owner = owner;
 
         liveBuffer.postValue(data); // post data can be called outside of the main thread
 

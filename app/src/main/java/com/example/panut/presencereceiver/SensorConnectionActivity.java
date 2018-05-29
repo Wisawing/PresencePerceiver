@@ -1,5 +1,6 @@
 package com.example.panut.presencereceiver;
 
+import android.arch.lifecycle.ViewModelProviders;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -28,7 +29,7 @@ import no.nordicsemi.android.nrftoolbox.scanner.ScannerFragment;
  * Created by Panut on 15-Jan-18.
  */
 
-public class SensorConnectionActivity extends FragmentActivity implements ScannerFragment.OnDeviceSelectedListener {
+public class SensorConnectionActivity extends FragmentActivity implements ScannerFragment.OnDeviceSelectedListener, SensorConnection.SensorConnectionListener {
 
     protected static final int REQUEST_ENABLE_BT = 2;
 //    private TextView _accelTextview;
@@ -43,12 +44,14 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     private List<SensorConnection> mConnections = new ArrayList<>();
     private LinearLayout mDeviceListView;
 
-//    private AudioViewModel mAudioViewModel;
+    private AudioViewModel mAudioViewModel;
     private AudioOutputControlFragment mAudioControlFragment;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_sensor_connection);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(this, R.string.no_ble, Toast.LENGTH_LONG).show();
@@ -60,12 +63,10 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
         }
 
         mAudioControlFragment = (AudioOutputControlFragment) getSupportFragmentManager().findFragmentById(R.id.audio_output_fragment);
-        // TODO fix audio output
-//        if(mAudioViewModel == null)
-//            mAudioViewModel = ViewModelProviders.of(this).get(AudioViewModel.class);
-//        mAudioViewModel.getAudioBuffer(this).observe(this, mAudioControlFragment);
 
-        setContentView(R.layout.activity_sensor_connection);
+        if(mAudioViewModel == null)
+            mAudioViewModel = ViewModelProviders.of(this).get(AudioViewModel.class);
+        mAudioViewModel.setBufferChangedListener(mAudioControlFragment);
 
         // setup ui
         mDeviceListView = findViewById(R.id.device_list);
@@ -162,15 +163,39 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     @Override
     public void onDeviceSelected(BluetoothDevice device, String name) {
         SensorConnection connection = SensorConnection.createConnection(device, this);
-        mConnections.add(connection);
-
-        mDeviceListView.addView(connection.getView());
+        connection.setConnectionListener(this);
     }
 
     @Override
     public void onDialogCanceled() {
         // do nothing
 
+    }
+
+    @Override
+    public void onSensorConnected(SensorConnection connection) {
+        mConnections.add(connection);
+
+
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mDeviceListView.addView(connection.getView());
+            }
+        });
+    }
+
+    @Override
+    public void onSensorDisconnected(SensorConnection connection) {
+        mConnections.remove(connection);
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mDeviceListView.removeView(connection.getView());
+            }
+        });
     }
 }
 
