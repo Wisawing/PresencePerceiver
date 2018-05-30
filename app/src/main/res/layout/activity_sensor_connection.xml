@@ -42,14 +42,41 @@
 
     <Button
         android:id="@+id/action_connect"
-        android:layout_width="373dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
-        android:layout_marginEnd="3dp"
+        android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:text="Connect"
-        app:layout_constraintBottom_toTopOf="@+id/audio_output_fragment"
+        android:text="Add Sensor"
+        app:layout_constraintBottom_toTopOf="@+id/connect_network_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/connect_network_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="Connect"
+        app:layout_constraintBottom_toTopOf="@+id/audio_output_fragment"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <EditText
+        android:id="@+id/ip_address_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:ems="10"
+        android:hint="ip address"
+        android:inputType="text"
+        android:text="127.0.0.1"
+        app:layout_constraintBottom_toTopOf="@+id/audio_output_fragment"
+        app:layout_constraintEnd_toStartOf="@+id/connect_network_button"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/action_connect" />
 
 </android.support.constraint.ConstraintLayout>

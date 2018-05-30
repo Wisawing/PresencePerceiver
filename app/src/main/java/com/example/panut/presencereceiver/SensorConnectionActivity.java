@@ -14,6 +14,7 @@ import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -46,6 +47,9 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
 
     private AudioViewModel mAudioViewModel;
     private AudioOutputControlFragment mAudioControlFragment;
+    private NetworkStreamer mNetworkStreamer;
+
+    private EditText ipAddressView;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -71,8 +75,16 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
         // setup ui
         mDeviceListView = findViewById(R.id.device_list);
 
-        Button connectButton = findViewById(R.id.action_connect);
+        Button addSensorButton = findViewById(R.id.action_connect);
+        addSensorButton.setOnClickListener(this::onAddSensorClicked);
+
+        Button connectButton = findViewById(R.id.connect_network_button);
         connectButton.setOnClickListener(this::onConnectClicked);
+
+        ipAddressView = findViewById(R.id.ip_address_text);
+
+        // initialize network module
+        mNetworkStreamer = new NetworkStreamer();
     }
 
     @Override
@@ -118,15 +130,17 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
         // TODO call each SensorConnection
     }
 
-    /**
-     * Called when user press CONNECT or DISCONNECT button. See layout files -> onClick attribute.
-     */
-    public void onConnectClicked(final View view) {
+
+    public void onAddSensorClicked(final View view) {
         if (isBLEEnabled()) {
             showDeviceScanningDialog(SignalManager.ACCEL_SERVICE_UUID);
         } else {
             showBLEDialog();
         }
+    }
+
+    public void onConnectClicked(final View view) {
+        mNetworkStreamer.connect(ipAddressView.getText().toString());
     }
 
     /**
@@ -176,26 +190,19 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     public void onSensorConnected(SensorConnection connection) {
         mConnections.add(connection);
 
-
-
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mDeviceListView.addView(connection.getView());
-            }
-        });
+        runOnUiThread(() -> mDeviceListView.addView(connection.getView()));
     }
 
     @Override
     public void onSensorDisconnected(SensorConnection connection) {
         mConnections.remove(connection);
 
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mDeviceListView.removeView(connection.getView());
-            }
-        });
+        runOnUiThread(() -> mDeviceListView.removeView(connection.getView()));
+    }
+
+    @Override
+    public void onSensorDataRecieved(SensorConnection connection, short[] data) {
+        mNetworkStreamer.sendData(data);
     }
 }
 

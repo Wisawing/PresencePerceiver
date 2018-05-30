@@ -68,7 +68,7 @@ public abstract class BleProfile implements BleManagerCallbacks {
 //        mConnectButton = mRootView.findViewById(R.id.action_connect);
 //        mDeviceNameView = mRootView.findViewById(R.id.device_name);
 //
-//        mConnectButton.setOnClickListener(this::onConnectClicked);
+//        mConnectButton.setOnClickListener(this::onAddSensorClicked);
 //    }
 
     public BleProfile(Activity context) {
@@ -112,7 +112,7 @@ public abstract class BleProfile implements BleManagerCallbacks {
 //        mConnectButton = mRootView.findViewById(R.id.action_connect);
 //        mDeviceNameView = mRootView.findViewById(R.id.device_name);
 //
-//        mConnectButton.setOnClickListener(this::onConnectClicked);
+//        mConnectButton.setOnClickListener(this::onAddSensorClicked);
 ////        mBatteryLevelView = findViewById(R.id.battery);
 //    }
 

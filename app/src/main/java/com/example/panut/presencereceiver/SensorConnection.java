@@ -34,6 +34,7 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
     public interface SensorConnectionListener {
         void onSensorConnected(SensorConnection connection);
         void onSensorDisconnected(SensorConnection connection);
+        void onSensorDataRecieved(SensorConnection connection, short data[]);
     }
 
     private static int uniqueID = 1;
@@ -173,8 +174,8 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         accel_str = data.value[0] + " - " + data.value[data.value.length - 1];
 //        accel_str = pData[0] + " - " + pData[pData.length - 1] + " : (" + minValue + " - " + maxValue + ")";
 
-
-        mAudioViewModel.writeAudioBuffer(data.value, this);
+//        mAudioViewModel.writeAudioBuffer(data.value, this);
+        mConnectionListener.onSensorDataRecieved(this, data.value);
 
         float fps = (float)count/(currentTime - previousCountResetTime) * 1000000000;
         // fps purpose
