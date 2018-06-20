@@ -116,7 +116,7 @@ public class SignalManager extends BleManager<SignalManagerCallbacks> {
 
                 values[i/2] = value;
 //                if(value != previousValue + 1) {
-//                    Log.d("Monitor", "disconnected data for " + (System.nanoTime()-previousTime)/1000000 + " ms : " + previousValue + ", " + value);
+//                    Log.d("MyMonitor", "disconnected data for " + (System.nanoTime()-previousTime)/1000000 + " ms : " + previousValue + ", " + value);
 //                }
 
 //                System.out.print(value + ":");

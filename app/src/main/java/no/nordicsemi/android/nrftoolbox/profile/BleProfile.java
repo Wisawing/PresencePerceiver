@@ -241,7 +241,7 @@ public abstract class BleProfile implements BleManagerCallbacks {
     @Override
     public void onDeviceDisconnected(final BluetoothDevice device) {
         mDeviceConnected = false;
-        mBleManager.close();
+//        mBleManager.close(); // redundant call
 //        getActivity().runOnUiThread(() -> {
 //            mConnectButton.setText(R.string.action_connect);
 //			mDeviceNameView.setText(getDefaultDeviceName());

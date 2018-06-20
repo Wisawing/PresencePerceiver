@@ -32,6 +32,9 @@
         <!-- android:name=".BluetoothLeService" -->
         <!-- android:enabled="true" /> -->
 
+        <meta-data
+            android:name="io.fabric.ApiKey"
+            android:value="5f28437abf9a58c091bfaab6ede62a9d10a8d930" />
     </application>
 
 </manifest>

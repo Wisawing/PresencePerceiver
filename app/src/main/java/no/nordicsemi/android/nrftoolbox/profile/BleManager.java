@@ -244,7 +244,7 @@ public abstract class BleManager<E extends BleManagerCallbacks> implements ILogg
 	 * @return autoConnect flag value
 	 */
 	protected boolean shouldAutoConnect() {
-		return false;
+		return true;
 	}
 
 	/**
@@ -1401,12 +1401,12 @@ public abstract class BleManager<E extends BleManagerCallbacks> implements ILogg
 
 		@Override
 		public final void onCharacteristicChanged(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {
-			final String data = ParserUtils.parse(characteristic);
+//			final String data = ParserUtils.parse(characteristic);
 
 			if (isBatteryLevelCharacteristic(characteristic)) {
-				Logger.i(mLogSession, "Notification received from " + characteristic.getUuid() + ", value: " + data);
+//				Logger.i(mLogSession, "Notification received from " + characteristic.getUuid() + ", value: " + data);
 				final int batteryValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-				Logger.a(mLogSession, "Battery level received: " + batteryValue + "%");
+//				Logger.a(mLogSession, "Battery level received: " + batteryValue + "%");
 				mBatteryValue = batteryValue;
 				onBatteryValueReceived(gatt, batteryValue);
 				mCallbacks.onBatteryValueReceived(gatt.getDevice(), batteryValue);
@@ -1415,10 +1415,10 @@ public abstract class BleManager<E extends BleManagerCallbacks> implements ILogg
 				final boolean notifications = cccd == null || cccd.getValue() == null || cccd.getValue().length != 2 || cccd.getValue()[0] == 0x01;
 
 				if (notifications) {
-					Logger.i(mLogSession, "Notification received from " + characteristic.getUuid() + ", value: " + data);
+//					Logger.i(mLogSession, "Notification received from " + characteristic.getUuid() + ", value: " + data);
 					onCharacteristicNotified(gatt, characteristic);
 				} else { // indications
-					Logger.i(mLogSession, "Indication received from " + characteristic.getUuid() + ", value: " + data);
+//					Logger.i(mLogSession, "Indication received from " + characteristic.getUuid() + ", value: " + data);
 					onCharacteristicIndicated(gatt, characteristic);
 				}
 			}

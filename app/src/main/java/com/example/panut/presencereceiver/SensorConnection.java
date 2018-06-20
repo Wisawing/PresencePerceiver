@@ -2,7 +2,10 @@ package com.example.panut.presencereceiver;
 
 import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
@@ -34,7 +37,7 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
     public interface SensorConnectionListener {
         void onSensorConnected(SensorConnection connection);
         void onSensorDisconnected(SensorConnection connection);
-        void onSensorDataRecieved(SensorConnection connection, short data[]);
+        void onSensorDataRead(short[] data, int ownerId);
     }
 
     private static int uniqueID = 1;
@@ -51,7 +54,7 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
     private TextView mFpsView;
     private Button mDisconnectButton;
 
-    private AudioViewModel mAudioViewModel;
+//    private AudioViewModel mAudioViewModel;
 
     private SensorConnectionListener mConnectionListener;
 
@@ -73,12 +76,7 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         mFpsView = mRootView.findViewById(R.id.fps);
         mDisconnectButton = mRootView.findViewById(R.id.disconnect_button);
 
-        mDisconnectButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                disconnect();
-            }
-        });
+        mDisconnectButton.setOnClickListener(v -> disconnect());
     }
 
     public void setConnectionListener(SensorConnectionListener connectionListener) {
@@ -91,35 +89,56 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         id = uniqueID++;
 
         createView();
-        mAudioViewModel = ViewModelProviders.of((FragmentActivity)mContext).get(AudioViewModel.class);
+//        mAudioViewModel = ViewModelProviders.of((FragmentActivity)mContext).get(AudioViewModel.class);
     }
 
     public View getView() {
         return mRootView;
     }
 
+    // unused currently auto connect can be done in BleManager
+    public void reconnectDevice(String address) {
+        timeHandler.postDelayed(() -> {
+            final BluetoothManager manager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+            BluetoothAdapter bluetoothAdapter = manager.getAdapter();
+
+            boolean reconnected = false;
+            Log.d("MyMonitor", "disconnected from : " + address);
+            for(BluetoothDevice iDevice : bluetoothAdapter.getBondedDevices()){
+                Log.d("MyMonitor", "Bonded Device : " + iDevice.getAddress());
+                if(address.compareTo(iDevice.getAddress())==0) {
+//                    Log.d("MyMonitor", "Bonded Device : " + iDevice.getAddress());
+                    connect(iDevice);
+                    reconnected = true;
+                }
+            }
+
+            if(!reconnected)
+                reconnectDevice(address);
+        }, 3000);
+    }
+
     @Override
     public void onDeviceDisconnected(BluetoothDevice device) {
         super.onDeviceDisconnected(device);
 
-        Log.d("Monitor", "Device Disconnected : " + device.getName());
+        Log.d("MyMonitor", "Device Disconnected : " + device.getName());
 
         timeHandler.removeCallbacksAndMessages(null);
         mConnectionListener.onSensorDisconnected(this);
-        mAudioViewModel.removeBuffer(this);
+
+//        reconnectDevice(device.getAddress());
+//        mAudioViewModel.removeBuffer(this);
     }
 
     public void keepMonitorLog(){
 
-        timeHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                SimpleDateFormat timeFormat =  new SimpleDateFormat("hh:mm:ss");
+        timeHandler.postDelayed(() -> {
+            SimpleDateFormat timeFormat =  new SimpleDateFormat("hh:mm:ss");
 
-                Log.d("Monitor", timeFormat.format(new Date()));
-                keepMonitorLog();
-            }
-        }, 3000);
+            Log.d("MyMonitor", timeFormat.format(new Date()));
+            keepMonitorLog();
+        }, 30000);
     }
 
     @Override
@@ -127,16 +146,11 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         super.onDeviceConnected(device);
 
         keepMonitorLog();
-        Log.d("Monitor", "Device Connected : " + device.getName());
+        Log.d("MyMonitor", "Device Connected : " + device.getName());
 
-        mContext.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mDeviceNameView.setText(device.getName());
-            }
-        });
+        mContext.runOnUiThread(() -> mDeviceNameView.setText(device.getName()));
 
-        mAudioViewModel.initializeBuffer(this);
+//        mAudioViewModel.initializeBuffer(this);
         mConnectionListener.onSensorConnected(this);
     }
 
@@ -174,8 +188,8 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         accel_str = data.value[0] + " - " + data.value[data.value.length - 1];
 //        accel_str = pData[0] + " - " + pData[pData.length - 1] + " : (" + minValue + " - " + maxValue + ")";
 
-//        mAudioViewModel.writeAudioBuffer(data.value, this);
-        mConnectionListener.onSensorDataRecieved(this, data.value);
+//        mAudioViewModel.writeAudioBuffer(data.value, id);
+        mConnectionListener.onSensorDataRead(data.value, id);
 
         float fps = (float)count/(currentTime - previousCountResetTime) * 1000000000;
         // fps purpose

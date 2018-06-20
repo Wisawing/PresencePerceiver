@@ -73,7 +73,7 @@
         android:ems="10"
         android:hint="ip address"
         android:inputType="text"
-        android:text="127.0.0.1"
+        android:text="haselab.ddns.net"
         app:layout_constraintBottom_toTopOf="@+id/audio_output_fragment"
         app:layout_constraintEnd_toStartOf="@+id/connect_network_button"
         app:layout_constraintStart_toStartOf="parent"

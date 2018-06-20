@@ -1,14 +1,11 @@
 package com.example.panut.presencereceiver;
 
-import android.arch.lifecycle.LiveData;
-import android.arch.lifecycle.Observer;
 import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -16,96 +13,16 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.ArrayList;
 
 
-public class AudioOutputControlFragment extends Fragment implements Observer<AudioViewModel.AudioData>, AudioViewModel.OnBufferChangedListener {
+public class AudioOutputControlFragment extends Fragment {
 
     public static final int AUDIO_SAMPLE_RATE = 8000;
 //    private static final int MINIMUM_DATA_TO_WRITE = 10;
-    private static final int DEFAULT_BUFFER_SIZE = 1000;
     private static final int OUTPUT_THREAD_INTERVAL_MS = 13; // ~ a little less than 80 ms
+    private final int MAX_WRITE_BUFFER_SIZE = 8096;
 
-    private class LocalBuffer {
-        short buffer[];
-        int startIndex;
-        public int size;
-        short readBuffer[]; // buffer for when reading array of data
-
-        LocalBuffer(){
-            buffer = new short[DEFAULT_BUFFER_SIZE];
-            readBuffer = new short[DEFAULT_BUFFER_SIZE];
-            startIndex = 0;
-            size = 0;
-        }
-
-//        public int size(){
-//            int size = endIndex - startIndex;5
-//
-//            // in case endIndex is less than startIndex;
-//            if(size < 0)
-//                size += DEFAULT_BUFFER_SIZE;
-//
-//            return size;
-//        }
-
-        int write(short[] data){
-            // check available size
-            int nWrite = Math.min(DEFAULT_BUFFER_SIZE - size, data.length);
-
-            // buffer full.
-            if(nWrite == 0)
-                return 0;
-
-            int startWritingIndex = startIndex + size;
-            if(startWritingIndex >= DEFAULT_BUFFER_SIZE)
-                startWritingIndex -= DEFAULT_BUFFER_SIZE;
-
-            try {
-                if (startWritingIndex + nWrite > DEFAULT_BUFFER_SIZE) {
-                    int bufferLeftTillEnd = DEFAULT_BUFFER_SIZE - startWritingIndex;
-                    System.arraycopy(data, 0, buffer, startWritingIndex, bufferLeftTillEnd);
-                    System.arraycopy(data, 0, buffer, 0, nWrite - bufferLeftTillEnd);
-                } else {
-                    System.arraycopy(data, 0, buffer, startWritingIndex, nWrite);
-                }
-            }
-            catch (ArrayIndexOutOfBoundsException e){
-                e.printStackTrace();
-            }
-
-            size += nWrite;
-
-            return nWrite;
-        }
-
-        // read <readSize> number of buffer. if the data in the buffer is not enough the rest is 0 filled.
-        public short[] read(int readSize) {
-            int nRead = Math.min(readSize, size);
-
-            if (startIndex + nRead > DEFAULT_BUFFER_SIZE - 1) {
-                int bufferLeftTillEnd = DEFAULT_BUFFER_SIZE - startIndex;
-                System.arraycopy(buffer, startIndex, readBuffer, 0, bufferLeftTillEnd);
-                System.arraycopy(buffer, 0, readBuffer, bufferLeftTillEnd, nRead - bufferLeftTillEnd);
-            } else {
-                System.arraycopy(buffer, startIndex, readBuffer, 0, nRead);
-            }
-
-            // re arrange buffer
-            startIndex += nRead;
-            size -= nRead;
-            if(startIndex >= DEFAULT_BUFFER_SIZE)
-                startIndex -= DEFAULT_BUFFER_SIZE;
-
-            // zero fill the rest
-            if(nRead < readSize){
-                Arrays.fill(buffer, nRead, readSize-1, (short)0);
-            }
-
-            return readBuffer;
-        }
-    }
 
     private ImageButton mPlayPauseButton;
     private PlayState mPlayState;
@@ -114,27 +31,6 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
     private AudioTrack mAudioTrack;
 
     private Handler mHandler;
-
-    private HashMap<Object, LocalBuffer> mLocalBuffers;
-    private final Object bufferLock = new Object();
-
-    @Override
-    public void onNewBuffer(Object bufferOwner, LiveData<AudioViewModel.AudioData> buffer) {
-        buffer.observe(getActivity(), this);
-
-        LocalBuffer localBuffer = new LocalBuffer();
-
-        synchronized (bufferLock) {
-            mLocalBuffers.put(bufferOwner, localBuffer);
-        }
-    }
-
-    @Override
-    public void onBufferDeleted(Object bufferOwner) {
-        synchronized (bufferLock) {
-            mLocalBuffers.remove(bufferOwner);
-        }
-    }
 
     public enum PlayState {
         STOP,
@@ -152,87 +48,73 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
         return fragment;
     }
 
-    private AudioOutputRunnable mAudioOutputRunnable;
+    private AudioOutputThread mAudioOutputThread;
+    private ArrayList<Short> outputBuffer;
+    private Object mBufferMutex = new Object();
 
-    private class AudioOutputRunnable implements Runnable {
+    public void writeBuffer(short data[]){
+        synchronized (mBufferMutex){
+            for(short i : data)
+                outputBuffer.add(i);
+        }
+    }
+
+    private class AudioOutputThread extends Thread {
         private long previousFrameTime;
-        private final int MAX_WRITE_BUFFER_SIZE = 8096;
-        private final int NUM_DATA_PER_FRAME = 10;
-        private short mReadBuffer[] = new short[NUM_DATA_PER_FRAME];
         private short mWriteBuffer[] = new short[MAX_WRITE_BUFFER_SIZE];
 
         void startOutput(){
             previousFrameTime = 0;
         }
 
-//            private int freqIndex = 0;
         @Override
         public void run() {
-            while (true) {
-                switch (mPlayState) {
-                    case PLAY:
+            synchronized (mBufferMutex) {
+                outputBuffer = new ArrayList<>();
+            }
 
-                        long currentTime = System.nanoTime();
-                        float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
-//                        Log.d("Monitor", "time period" + timePeriod);
-                        // number of sample according to sample rate
-                        int nSample;
-                        if(previousFrameTime == 0) { // first time still does not have a time period
-                            nSample = AudioOutputControlFragment.AUDIO_SAMPLE_RATE * OUTPUT_THREAD_INTERVAL_MS / 1000;
+            // calculate sample size
+            long currentTime = System.nanoTime();
+            float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
+
+            // number of sample according to sample rate
+            int nSample;
+            if(previousFrameTime == 0) { // first time still does not have a time period
+                nSample = AudioOutputControlFragment.AUDIO_SAMPLE_RATE * OUTPUT_THREAD_INTERVAL_MS / 1000;
+            }
+            else {
+                nSample =(int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE);
+            }
+            previousFrameTime = currentTime;
+
+            // make sure it does not go over
+            if (nSample > MAX_WRITE_BUFFER_SIZE)
+                nSample = MAX_WRITE_BUFFER_SIZE;
+
+            synchronized (mBufferMutex) {
+                if (outputBuffer.size() > 0) { // buffer empty skip interpolation
+
+                    // interpolate data
+                    float dataSkipPerSample = (float) outputBuffer.size() / nSample;
+                    float dataIndex = 0;
+
+                    for (int i = 0; i < nSample; i++) {
+                        short value = outputBuffer.get((int) dataIndex);
+
+                        // linear interpolation between data
+                        float secondValueWeight = dataIndex - (int) dataIndex;
+                        if (secondValueWeight > 0.001 && dataIndex + 1 < outputBuffer.size()) {
+                            short secondValue = outputBuffer.get((int) dataIndex + 1);
+                            value = (short) ((1 - secondValueWeight) * (float) value + secondValueWeight * secondValue);
                         }
-                        else {
-                            nSample =(int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE);
-                        }
-                        previousFrameTime = currentTime;
-
-                        // make sure it does not go over
-                        if (nSample > MAX_WRITE_BUFFER_SIZE)
-                            nSample = MAX_WRITE_BUFFER_SIZE;
-
-
-
-                        Arrays.fill(mReadBuffer, 0, NUM_DATA_PER_FRAME, (short)0);
-
-                        int nBuffer;
-                        synchronized (bufferLock) {
-                            nBuffer = mLocalBuffers.size();
-                            for (HashMap.Entry<Object, LocalBuffer> iBuffer : mLocalBuffers.entrySet()) {
-                                short buffer[] = iBuffer.getValue().read(NUM_DATA_PER_FRAME);
-
-                                // accumulate from all buffer.
-                                for (int i = 0; i < NUM_DATA_PER_FRAME; i++) {
-                                    mReadBuffer[i] += buffer[i];
-                                }
-                            }
-                        }
-
-                        if(nBuffer > 0) { // buffer empty skip interpolation
-                            // average the data
-                            for (int i = 0; i < NUM_DATA_PER_FRAME; i++) {
-                                mReadBuffer[i] /= nBuffer * 5; // blindly amplify
-                            }
-
-                            // interpolate data
-
-                            float dataSkipPerSample = (float) mReadBuffer.length / nSample;
-                            float dataIndex = 0;
-
-//                        String debugS = "";
-
-                            for (int i = 0; i < nSample; i++) {
-                                short value = mReadBuffer[(int) dataIndex];
-
-                                // linear interpolation between data
-                                float secondValueWeight = dataIndex - (int) dataIndex;
-                                if( secondValueWeight > 0.001 && dataIndex + 1 < mReadBuffer.length) {
-                                    short secondValue = mReadBuffer[(int)dataIndex+1];
-                                    value = (short)((1-secondValueWeight)*(float)value + secondValueWeight*secondValue);
-                                }
-                                mWriteBuffer[i] = value;
-                                dataIndex += dataSkipPerSample;
+                        mWriteBuffer[i] = value;
+                        dataIndex += dataSkipPerSample;
 //                            debugS += mWriteBuffer[i] + ", ";
-                            }
-                        }
+                    }
+                }
+            }
+
+            mAudioTrack.write(mWriteBuffer, 0, nSample);
 
 
 //                        // debugging let's try code generated sound first
@@ -249,22 +131,8 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
 //                            freqIndex++;
 //                        }
 
-//                        Log.d("Monitor", debugS);
+//                        Log.d("MyMonitor", debugS);
 
-                        mAudioTrack.write(mWriteBuffer, 0, nSample);
-                        break;
-                    case STOP: // do nothing for now
-
-//                        Log.d("Monitor", "STOP");
-                        break;
-                }
-
-                try {
-                    Thread.sleep(OUTPUT_THREAD_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 
@@ -286,15 +154,10 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
             .setBufferSizeInBytes(bufferSize)
             .build();
 
-        mLocalBuffers = new HashMap<>();
-
-//        mAudioViewModel = ViewModelProviders.of(getActivity()).get(AudioViewModel.class);
-
         mHandler = new Handler();
         mPlayState = PlayState.STOP;
-        mAudioOutputRunnable = new AudioOutputRunnable();
-        Thread mOutputThread = new Thread(mAudioOutputRunnable);
-        mOutputThread.start();
+        mAudioOutputThread = new AudioOutputThread();
+        mAudioOutputThread.start();
     }
 
 
@@ -328,9 +191,10 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
                     mPlayState = PlayState.PLAY;
 
                     mAudioTrack.play();
-                    mAudioOutputRunnable.startOutput();
+                    mAudioOutputThread.startOutput();
+//                    mNetworkOutput.startOutput();
 
-                    Log.d("Monitor", "PLAY PRESSED");
+                    Log.d("MyMonitor", "PLAY PRESSED");
                     break;
                 case PLAY:
                 case BUFFER:
@@ -339,68 +203,13 @@ public class AudioOutputControlFragment extends Fragment implements Observer<Aud
                     mHandler.removeCallbacks(null);
                     mPlayState = PlayState.STOP;
 
-                    Log.d("Monitor", "STOP PRESSED");
+                    Log.d("MyMonitor", "STOP PRESSED");
             }
         });
 
         return view;
     }
 
-
-
-
-    // on audio data changed
-    @Override
-    public void onChanged(@Nullable AudioViewModel.AudioData audioData) {
-        if(audioData == null || mAudioTrack == null)
-            return;
-
-        synchronized (bufferLock) {
-            // write data to temp buffer
-            LocalBuffer localBuffer = mLocalBuffers.get(audioData.owner);
-            if (localBuffer == null) {
-                Log.d("Monitor", "Error: Audio data changed on uninitialized buffer");
-                return;
-            }
-
-            localBuffer.write(audioData.buffer);
-        }
-
-        // now writing to audio buffer in thread
-        // should always write whether or not the data is ready.
-//        // check if we should write to track
-//        boolean shouldWrite = false;
-//
-//        // check if data is full then we should just write
-//        if(nWritten < audioData.buffer.length)
-//            shouldWrite = true;
-//
-//        // check if all data in all buffer are ready
-//        if(!shouldWrite) {
-//            boolean hasData = true;
-//
-//            for (HashMap.Entry<Object, LocalBuffer> iBuffer : mLocalBuffers.entrySet()) {
-//                if (iBuffer.getValue().size < MINIMUM_DATA_TO_WRITE)
-//                    hasData = false;
-//            }
-//
-//            if(hasData)
-//                shouldWrite = true;
-//        }
-//
-//        // write data.
-//        if(shouldWrite) {
-//        }
-
-//        Log.d("Monitor", audioData.id + "");
-//        int nSampleWritten = mAudioTrack.write(audioData.buffer, 0, audioData.buffer.length);
-//
-//        int nSampleLeftOver = audioData.buffer.length - nSampleWritten;
-//
-//        if(nSampleLeftOver > 0){
-//            Log.d("Monitor", "Left over data to write : " + nSampleLeftOver + ", data written : " + nSampleWritten);
-//        }
-    }
 
 
     @Override
