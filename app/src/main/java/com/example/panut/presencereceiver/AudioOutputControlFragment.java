@@ -18,15 +18,16 @@ import java.util.ArrayList;
 
 public class AudioOutputControlFragment extends Fragment {
 
-    public static final int AUDIO_SAMPLE_RATE = 8000;
-//    private static final int MINIMUM_DATA_TO_WRITE = 10;
-    private static final int OUTPUT_THREAD_INTERVAL_MS = 13; // ~ a little less than 80 ms
-    private final int MAX_WRITE_BUFFER_SIZE = 8096;
+    /** any sample rate higher than this will result in audio buffer underrun.
+     * This is because the phone cpu is not fast enough to process all the samples*/
+    public static final int AUDIO_SAMPLE_RATE = 11200;
+
+    private static final int OUTPUT_THREAD_INTERVAL_MS = 10;
+    private final int MAX_WRITE_BUFFER_SIZE = AUDIO_SAMPLE_RATE;
 
 
     private ImageButton mPlayPauseButton;
     private PlayState mPlayState;
-//    private AudioViewModel mAudioViewModel;
 
     private AudioTrack mAudioTrack;
 
@@ -51,7 +52,9 @@ public class AudioOutputControlFragment extends Fragment {
     private AudioOutputThread mAudioOutputThread;
     private ArrayList<Short> outputBuffer;
     private Object mBufferMutex = new Object();
+    private Object mStateMutex = new Object();
 
+    private int freqIndex = 0;
     public void writeBuffer(short data[]){
         synchronized (mBufferMutex){
             for(short i : data)
@@ -60,7 +63,7 @@ public class AudioOutputControlFragment extends Fragment {
     }
 
     private class AudioOutputThread extends Thread {
-        private long previousFrameTime;
+        private long previousFrameTime = 0;
         private short mWriteBuffer[] = new short[MAX_WRITE_BUFFER_SIZE];
 
         void startOutput(){
@@ -69,70 +72,97 @@ public class AudioOutputControlFragment extends Fragment {
 
         @Override
         public void run() {
-            synchronized (mBufferMutex) {
-                outputBuffer = new ArrayList<>();
-            }
+            while(true) {
 
-            // calculate sample size
-            long currentTime = System.nanoTime();
-            float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
+                // calculate sample size
+                long currentTime = System.nanoTime();
+                float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
 
-            // number of sample according to sample rate
-            int nSample;
-            if(previousFrameTime == 0) { // first time still does not have a time period
-                nSample = AudioOutputControlFragment.AUDIO_SAMPLE_RATE * OUTPUT_THREAD_INTERVAL_MS / 1000;
-            }
-            else {
-                nSample =(int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE);
-            }
-            previousFrameTime = currentTime;
+                // number of sample according to sample rate
+                int nSample;
+                if (previousFrameTime == 0) { // first time still does not have a time period
+                    nSample = AudioOutputControlFragment.AUDIO_SAMPLE_RATE * OUTPUT_THREAD_INTERVAL_MS / 1000;
+                } else {
+                    nSample = (int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE);
+                }
+                previousFrameTime = currentTime;
 
-            // make sure it does not go over
-            if (nSample > MAX_WRITE_BUFFER_SIZE)
-                nSample = MAX_WRITE_BUFFER_SIZE;
+                // make sure it does not go over
+                if (nSample > MAX_WRITE_BUFFER_SIZE)
+                    nSample = MAX_WRITE_BUFFER_SIZE;
 
-            synchronized (mBufferMutex) {
-                if (outputBuffer.size() > 0) { // buffer empty skip interpolation
+                synchronized (mBufferMutex) {
+                    if (outputBuffer.size() > 0) { // buffer empty skip interpolation
 
-                    // interpolate data
-                    float dataSkipPerSample = (float) outputBuffer.size() / nSample;
-                    float dataIndex = 0;
+                        // interpolate data
+                        double dataSkipPerSample = (double) (outputBuffer.size() - 1)/ nSample;
+                        double dataIndex_d = 0;
+                        int dataIndex;
+                        int prevDataIndex = -1;
+                        short value = 0;
 
-                    for (int i = 0; i < nSample; i++) {
-                        short value = outputBuffer.get((int) dataIndex);
+                        for (int i = 0; i < nSample; i++) {
+                            dataIndex = (int)dataIndex_d;
 
-                        // linear interpolation between data
-                        float secondValueWeight = dataIndex - (int) dataIndex;
-                        if (secondValueWeight > 0.001 && dataIndex + 1 < outputBuffer.size()) {
-                            short secondValue = outputBuffer.get((int) dataIndex + 1);
-                            value = (short) ((1 - secondValueWeight) * (float) value + secondValueWeight * secondValue);
-                        }
-                        mWriteBuffer[i] = value;
-                        dataIndex += dataSkipPerSample;
+                            if(dataIndex != prevDataIndex) {
+                                try {
+                                    value = outputBuffer.get(dataIndex);
+                                } catch(IndexOutOfBoundsException e){
+                                    e.printStackTrace();
+                                    Log.d("MyMonitor", "nSample : " + nSample);
+                                }
+
+                                // Disable Interpolation because cannot compute in time and will result in underrun.
+//                                // linear interpolation between data
+//                                float secondValueWeight = dataIndex_d - dataIndex;
+//                                if (secondValueWeight > 0.001 && dataIndex_d + 1 < outputBuffer.size()) {
+//                                    short secondValue = outputBuffer.get((int) dataIndex_d + 1);
+//                                    value = (short) ((1 - secondValueWeight) * (float) value + secondValueWeight * secondValue);
+//                                }
+
+                                prevDataIndex = dataIndex;
+                            }
+
+
+                            mWriteBuffer[i] = value;
+                            dataIndex_d += dataSkipPerSample;
 //                            debugS += mWriteBuffer[i] + ", ";
+                        }
+                    }
+                    outputBuffer.clear();
+                }
+
+//                // debugging let's try code generated sound first
+//                final int amp = 10000;
+//                final int freq = 100;
+//
+//                for(int i = 0; i < nSample; i++){
+//                    float sample_f = (float)Math.sin((freqIndex % freq) / (float)freq * Math.PI)*amp;
+//                    short sample_s = (short)sample_f;
+//                    mWriteBuffer[i] = sample_s;
+//
+//                    freqIndex++;
+//                }
+
+                synchronized (mStateMutex) {
+                    switch (mPlayState) {
+                        case STOP:
+                            break;
+                        case PLAY:
+                        case BUFFER:
+                            int written = mAudioTrack.write(mWriteBuffer, 0, nSample);
+                            if(written != nSample){
+                                Log.d("MyMonitor", "Audio Track not correctly written " + written + ":" + nSample);
+                            }
                     }
                 }
+
+                try {
+                    sleep(OUTPUT_THREAD_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-
-            mAudioTrack.write(mWriteBuffer, 0, nSample);
-
-
-//                        // debugging let's try code generated sound first
-////                        final int nSample = 512;
-//                        final int amp = 10000;
-//                        final int freq = 100;
-////                        short samples[] = new short[nSample];
-//
-//                        for(int i = 0; i < nSample; i++){
-//                            float sample_f = (float)Math.sin((freqIndex % freq) / (float)freq * Math.PI)*amp;
-//                            short sample_s = (short)sample_f;
-//                            mWriteBuffer[i] = sample_s;
-//
-//                            freqIndex++;
-//                        }
-
-//                        Log.d("MyMonitor", debugS);
-
         }
     }
 
@@ -140,7 +170,7 @@ public class AudioOutputControlFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        int bufferSize =  AudioTrack.getMinBufferSize(AUDIO_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
+        int bufferSize =  AudioTrack.getMinBufferSize(AUDIO_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
         mAudioTrack = new AudioTrack.Builder()
             .setAudioAttributes(new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -149,13 +179,18 @@ public class AudioOutputControlFragment extends Fragment {
             .setAudioFormat(new AudioFormat.Builder()
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                 .setSampleRate(AUDIO_SAMPLE_RATE)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_DEFAULT)
                 .build())
             .setBufferSizeInBytes(bufferSize)
             .build();
 
         mHandler = new Handler();
         mPlayState = PlayState.STOP;
+
+        synchronized (mBufferMutex) {
+            outputBuffer = new ArrayList<>();
+        }
+
         mAudioOutputThread = new AudioOutputThread();
         mAudioOutputThread.start();
     }
@@ -185,25 +220,28 @@ public class AudioOutputControlFragment extends Fragment {
 
         mPlayPauseButton = view.findViewById(R.id.play_pause_button);
         mPlayPauseButton.setOnClickListener(v -> {
-            switch (mPlayState){
-                case STOP:
-                    mPlayPauseButton.setImageResource(R.drawable.pause);
-                    mPlayState = PlayState.PLAY;
+            synchronized (mStateMutex) {
+                switch (mPlayState) {
+                    case STOP:
+                        mPlayPauseButton.setImageResource(R.drawable.pause);
+                        mPlayState = PlayState.PLAY;
 
-                    mAudioTrack.play();
-                    mAudioOutputThread.startOutput();
+                        mAudioTrack.play();
+                        mAudioOutputThread.startOutput();
 //                    mNetworkOutput.startOutput();
 
-                    Log.d("MyMonitor", "PLAY PRESSED");
-                    break;
-                case PLAY:
-                case BUFFER:
-                    mPlayPauseButton.setImageResource(R.drawable.play);
-                    mAudioTrack.stop();
-                    mHandler.removeCallbacks(null);
-                    mPlayState = PlayState.STOP;
+                        Log.d("MyMonitor", "PLAY PRESSED");
+                        break;
+                    case PLAY:
+                    case BUFFER:
+                        mPlayPauseButton.setImageResource(R.drawable.play);
+                        mAudioTrack.pause();
+                        mAudioTrack.flush();
+                        mHandler.removeCallbacks(null);
+                        mPlayState = PlayState.STOP;
 
-                    Log.d("MyMonitor", "STOP PRESSED");
+                        Log.d("MyMonitor", "STOP PRESSED");
+                }
             }
         });
 

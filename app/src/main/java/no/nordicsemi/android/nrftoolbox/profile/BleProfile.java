@@ -48,13 +48,6 @@ public abstract class BleProfile implements BleManagerCallbacks {
     private BleManager<? extends BleManagerCallbacks> mBleManager;
     protected Activity mContext;
 
-    // TODO move ui out of here
-//    private View mRootView;
-//    private TextView mDeviceNameView;
-////    private TextView mBatteryLevelView;
-//    private Button mConnectButton;
-
-
     private ILogSession mLogSession;
 
     private boolean mDeviceConnected = false;
@@ -199,7 +192,6 @@ public abstract class BleProfile implements BleManagerCallbacks {
     public void connect(final BluetoothDevice device) {
         mBleManager.connect(device);
 
-        // TODO handle these log?
 //        final int titleId = getLoggerProfileTitle();
 //        if (titleId > 0) {
 //            mLogSession = Logger.newSession(getActivity().getApplicationContext(), getString(titleId), device.getAddress(), name);
@@ -218,24 +210,17 @@ public abstract class BleProfile implements BleManagerCallbacks {
         mBleManager.disconnect();
     }
 
-    // TODO update ui
     @Override
     public void onDeviceConnecting(final BluetoothDevice device) {
-//        getActivity().runOnUiThread(() -> {
-//            mDeviceNameView.setText(mDeviceName != null ? mDeviceName : getString(R.string.not_available));
-//            mConnectButton.setText(R.string.action_connecting);
-//        });
     }
 
     @Override
     public void onDeviceConnected(final BluetoothDevice device) {
         mDeviceConnected = true;
-//        getActivity().runOnUiThread(() -> mConnectButton.setText(R.string.action_disconnect));
     }
 
     @Override
     public void onDeviceDisconnecting(final BluetoothDevice device) {
-//        getActivity().runOnUiThread(() -> mConnectButton.setText(R.string.action_disconnecting));
     }
 
     @Override

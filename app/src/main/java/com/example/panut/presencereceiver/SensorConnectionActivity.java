@@ -17,8 +17,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import com.crashlytics.android.Crashlytics;
-import io.fabric.sdk.android.Fabric;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -54,7 +52,6 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Fabric.with(this, new Crashlytics());
 
         setContentView(R.layout.activity_sensor_connection);
 
@@ -138,7 +135,10 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        // TODO call each SensorConnection
+
+        for(SensorConnection sc : mConnections){
+            sc.onSaveInstanceState(outState);
+        }
     }
 
 
@@ -151,7 +151,10 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     }
 
     public void onConnectClicked(final View view) {
-        mNetworkStreamer.connect(ipAddressView.getText().toString());
+        if(mNetworkStreamer.isConnectionAlive())
+            mNetworkStreamer.disconnect();
+        else
+            mNetworkStreamer.connect(ipAddressView.getText().toString());
     }
 
     /**
@@ -226,14 +229,19 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
 
     @Override
     public void onNetworkConnected() {
-        mConnectButton.setText("Connected");
-        mConnectButton.setEnabled(false);
+
+        runOnUiThread(() -> {
+            mConnectButton.setText("Disconnect");
+//            mConnectButton.setEnabled(false);
+        });
     }
 
     @Override
     public void onNetworkDisconnected() {
-        mConnectButton.setText("Connect");
-        mConnectButton.setEnabled(true);
+        runOnUiThread(() -> {
+            mConnectButton.setText("Connect");
+//            mConnectButton.setEnabled(true);
+        });
     }
 
     @Override

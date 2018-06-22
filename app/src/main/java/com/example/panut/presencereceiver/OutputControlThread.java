@@ -7,16 +7,18 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 
+/**
 // This class control the output to the network class.
 // It cumulates the data gotten from writeToBuffer() to various buffers
 // then average all the data from all buffers into a single stream of data
+ */
 
 public class OutputControlThread extends Thread {
 
     private final int NUM_DATA_PER_FRAME = 10;
     private short mReadBuffer[] = new short[NUM_DATA_PER_FRAME];
     private static final int DEFAULT_BUFFER_SIZE = 1000;
-    private static final int OUTPUT_THREAD_INTERVAL_MS = 13; // ~ a little less than 80 ms
+    private static final int OUTPUT_THREAD_INTERVAL_MS = 10;
 
     private HashMap<Integer, LocalBuffer> mLocalBuffers;
     private final Object bufferLock = new Object();
@@ -111,7 +113,12 @@ public class OutputControlThread extends Thread {
             return nWrite;
         }
 
-        // read <readSize> number of buffer. if the data in the buffer is not enough the rest is 0 filled.
+        /** read <readSize> number of buffer. if the data in the buffer is not enough the rest is 0 filled.
+         *  The data read is considered erased from the buffer.
+         *
+         * @param readSize
+         * @return
+         */
         public short[] read(int readSize) {
             int nRead = Math.min(readSize, size);
 
