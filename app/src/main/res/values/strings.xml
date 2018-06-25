@@ -50,4 +50,5 @@
 
 	<string name="accel_default_name">accel default name</string>
 	<string name="about_text">about_text</string>
+	<string name="ip_address">ip_address</string>
 </resources>

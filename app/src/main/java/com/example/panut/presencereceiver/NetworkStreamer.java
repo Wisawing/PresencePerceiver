@@ -1,22 +1,13 @@
 package com.example.panut.presencereceiver;
 
-import android.provider.ContactsContract;
 import android.util.Log;
 
-//import com.google.common.net.InetAddresses;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.DatagramSocketImpl;
 import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
 
@@ -57,7 +48,6 @@ public class NetworkStreamer {
         private long receiveCount = 0;
         private volatile boolean mKeepAlive = false;
 
-        // TODO remove test codes
 //        private short previousShort = -1;
 //        private int dropCount = 0;
 
@@ -114,7 +104,7 @@ public class NetworkStreamer {
 
                         receiveCount++;
 
-                        if(mEventListener != null) {
+                        if(mEventListener != null && data_s.length != 0) {
                             mEventListener.onNetworkDataReceived(data_s);
                         }
                     }
@@ -146,7 +136,6 @@ public class NetworkStreamer {
 
         private volatile boolean mKeepAlive;
 
-        // TODO comment out these test codes
 //        short count = 0;
 
         public ClientThread(String address) {

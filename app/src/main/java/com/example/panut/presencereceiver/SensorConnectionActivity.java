@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -53,6 +54,8 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
     private Button mConnectButton;
     private TextView mNetworkDataView;
 
+    private SharedPreferences mPreferences;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,6 +70,8 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
         if (!isBLEEnabled()) {
             showBLEDialog();
         }
+
+        mPreferences = getPreferences(MODE_PRIVATE);
 
         mAudioControlFragment = (AudioOutputControlFragment) getSupportFragmentManager().findFragmentById(R.id.audio_output_fragment);
 
@@ -85,6 +90,9 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
 //        mConnectButton.setOnClickListener(this::forceCrash);
 
         ipAddressView = findViewById(R.id.ip_address_text);
+        String ipAddress = mPreferences.getString(getString(R.string.ip_address), "haselab.ddns.com");
+        ipAddressView.setText(ipAddress);
+
         mNetworkDataView = findViewById(R.id.network_data);
 
         // initialize network module
@@ -155,11 +163,26 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
         }
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        SharedPreferences.Editor prefEditor = mPreferences.edit();
+
+        // save current ip address
+        String address = ipAddressView.getText().toString();
+        prefEditor.putString(getString(R.string.ip_address), address);
+        prefEditor.commit();
+    }
+
     public void onConnectClicked(final View view) {
         if(mNetworkStreamer.isConnectionAlive())
             mNetworkStreamer.disconnect();
-        else
-            mNetworkStreamer.connect(ipAddressView.getText().toString());
+        else {
+            String address = ipAddressView.getText().toString();
+
+            mNetworkStreamer.connect(address);
+        }
     }
 
     /**
