@@ -171,7 +171,7 @@ public class OutputControlThread extends Thread {
 
                 // average the data
                 for (int i = 0; i < NUM_DATA_PER_FRAME; i++) {
-                    mReadBuffer[i] /= nBuffer * 5; // blindly amplify
+                    mReadBuffer[i] /= nBuffer / 3.0f; // blindly amplify
                 }
 
                 mNetworkStreamer.sendData(mReadBuffer, NUM_DATA_PER_FRAME);

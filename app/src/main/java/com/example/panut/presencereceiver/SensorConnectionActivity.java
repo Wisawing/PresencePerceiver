@@ -15,7 +15,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import org.w3c.dom.Text;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -48,6 +51,7 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
 
     private EditText ipAddressView;
     private Button mConnectButton;
+    private TextView mNetworkDataView;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -81,6 +85,7 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
 //        mConnectButton.setOnClickListener(this::forceCrash);
 
         ipAddressView = findViewById(R.id.ip_address_text);
+        mNetworkDataView = findViewById(R.id.network_data);
 
         // initialize network module
         mNetworkStreamer = new NetworkStreamer();
@@ -111,17 +116,17 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
 //        timeHandler.removeCallbacksAndMessages(null);
 //    }
 
-    public void keepLog(){
-        timeHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                SimpleDateFormat timeFormat =  new SimpleDateFormat("hh:mm:ss");
-
-                Log.d("MyMonitor", timeFormat.format(new Date()));
-                keepLog();
-            }
-        }, 3000);
-    }
+//    public void keepLog(){
+//        timeHandler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                SimpleDateFormat timeFormat =  new SimpleDateFormat("hh:mm:ss");
+//
+//                Log.d("MyMonitor", timeFormat.format(new Date()));
+//                keepLog();
+//            }
+//        }, 3000);
+//    }
 
 //    @Override
 //    public void onDeviceConnected(BluetoothDevice device) {
@@ -244,9 +249,20 @@ public class SensorConnectionActivity extends FragmentActivity implements Scanne
         });
     }
 
+    int dataReceivedCount = 0;
     @Override
     public void onNetworkDataReceived(short[] data) {
         mAudioControlFragment.writeBuffer(data);
+
+        // let's show this on UI
+        if(dataReceivedCount % 8 == 0){ // this should be about 10 fps
+            String data_s = "\tNetwork Data : " + data[0] + " - " + data[data.length-1];
+            runOnUiThread(() -> {
+                mNetworkDataView.setText(data_s);
+            });
+        }
+
+        dataReceivedCount++;
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.panut.presencereceiver;
 
+import android.provider.ContactsContract;
 import android.util.Log;
 
 //import com.google.common.net.InetAddresses;
@@ -7,6 +8,9 @@ import android.util.Log;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.DatagramSocketImpl;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -19,6 +23,7 @@ import java.util.ArrayDeque;
 public class NetworkStreamer {
     private static final int CONNECTION_PORT = 5076;
     private static final int DATA_SEND_INTERVAL = 12;
+    private static final int MAXIMUM_PACKET_SIZE = 10; // size in short
     private ServerThread mServerThread;
     private ClientThread mClientThread;
     private NetworkEventListener mEventListener;
@@ -31,90 +36,100 @@ public class NetworkStreamer {
 
     public void disconnect() {
         mClientThread.disconnect();
-        mServerThread.disconnect();
+//        mServerThread.disconnect();
     }
 
     public interface NetworkEventListener {
+        /** client events */
         void onNetworkConnected();
         void onNetworkDisconnected();
+
+        /** server events */
         void onNetworkDataReceived(short data[]);
     }
 
     private class ServerThread extends Thread {
-        private ServerSocket mServerSocket;
+//        private ServerSocket mServerSocket;
+        private DatagramSocket mSocket;
+        private byte[] mReceiveBuffer = new byte[MAXIMUM_PACKET_SIZE*2];
+        private DatagramPacket mPacket = new DatagramPacket(mReceiveBuffer, mReceiveBuffer.length);
 
         private long receiveCount = 0;
         private volatile boolean mKeepAlive = false;
+
+        // TODO remove test codes
+//        private short previousShort = -1;
+//        private int dropCount = 0;
 
         @Override
         public void run() {
             mKeepAlive = true;
 
-            try {
-                while(mKeepAlive) {
-                    mServerSocket = new ServerSocket(CONNECTION_PORT);
-                    Socket receiveSocket = mServerSocket.accept(); // this block until a connection is made.
+            /** always keep the server opened */
+            while(true) {
+                try {
+                    mSocket = new DatagramSocket(CONNECTION_PORT);
 
-                    Log.d("MyMonitor", "Server received a connection");
+                    mSocket.receive(mPacket);
 
                     /** try to connect two ways */
-                    connect(receiveSocket.getInetAddress().getHostAddress());
+                    connect(mPacket.getAddress().getHostAddress());
 
-                    DataInputStream inputStream = new DataInputStream(receiveSocket.getInputStream());
+                    while(mKeepAlive && !mSocket.isClosed()) {
+                        mSocket.receive(mPacket);
+//                        byte data[] = mPacket.getData();
+                        int nData = mPacket.getLength();
+                        short data_s[] = new short[nData/2];
 
-//                    previousShort = inputStream.readShort();
-                    while(mKeepAlive && receiveSocket.isConnected()) {
-                        short data = inputStream.readShort();
+                        /** parse from byte to short */
+                        for(int i = 0; i < nData/2; i++){
+                            int index = i*2;
+                            data_s[i] = (short)(((mReceiveBuffer[index]&0xff)<<8) + (mReceiveBuffer[index+1]&0xff));
+                        }
 
-//                        // test data continuity
-//                        int diff = data - previousShort;
-//                        if(diff < 0){ // in case overflow
-//                            diff += Short.MAX_VALUE+1;
+                        /** test data continuity */
+//                        for(int i = 0; i < nData/2; i++) {
+//                            int diff = data_s[i] - previousShort;
+//                            if (diff < 0) { // in case overflow
+//                                diff += Short.MAX_VALUE;
+//                            }
+//                            diff--;
+//
+//                            dropCount += diff;
+//
+//                            if (diff != 0) {
+//                                Log.d("MyMonitor", "Network Data between " + previousShort + " and " + data_s[i]);
+//                            }
+//
+//                            previousShort = data_s[i];
 //                        }
-//                        diff--;
-//
-//                        dropCount += diff;
-//
-//
-//                        if(diff > 0){
-//                           Log.d("MyMonitor", "Network Data between " + previousShort + " and " + data);
-//
+//                        if (receiveCount % 100 == 0) {
+//                            Log.d("MyMonitor", "Data received :" + (float) (receiveCount*10) / ((receiveCount*10) + dropCount) * 100 + " %");
 //                        }
-//
-//                        if(receiveCount%100==0){
-//                            Log.d("MyMonitor", "Data received :" + (float)receiveCount/(receiveCount+dropCount)*100 + " %");
-//                        }
-//
-//                        previousShort = data;
-//                        // end test data continuity
+                        /** end test data continuity */
 
-                        if(receiveCount % 1000 == 0){
-                            Log.d("MyMonitor", "Received data from client : "  + data);
+                        if(nData >= 2 && receiveCount % 300 == 0){
+                            Log.d("MyMonitor", "Received data from client : "  + data_s[0]);
                         }
 
                         receiveCount++;
 
                         if(mEventListener != null) {
-                            short temp[] = new short[1];
-                            temp[0] = data;
-                            mEventListener.onNetworkDataReceived(temp);
+                            mEventListener.onNetworkDataReceived(data_s);
                         }
                     }
+
+                } catch (SocketException e) {
+                    e.printStackTrace();
+                } catch (IOException e){
+                    e.printStackTrace();
                 }
-            } catch (SocketException e) {
 
-            } catch (IOException e) {
-                e.printStackTrace();
+                if(mSocket != null)
+                    mSocket.close();
+
+                Log.d("MyMonitor", "Server Closed");
             }
-
-            try {
-                if(mServerSocket != null)
-                    mServerSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            Log.d("MyMonitor", "Server Closed");
         }
 
         public void disconnect() {
@@ -124,8 +139,15 @@ public class NetworkStreamer {
 
     private class ClientThread extends Thread {
         private String mIpAddress;
-        private Socket mSocket;
+//        private Socket mSocket;
+        private DatagramSocket mSocket;
+        private DatagramPacket mPacket;
+        private byte[] mSendBuffer = new byte[MAXIMUM_PACKET_SIZE*2];
+
         private volatile boolean mKeepAlive;
+
+        // TODO comment out these test codes
+//        short count = 0;
 
         public ClientThread(String address) {
 //            if(InetAddresses.isInetAddress(address)){
@@ -140,6 +162,8 @@ public class NetworkStreamer {
 //                }
 //            }
             mIpAddress = address;
+            mPacket = new DatagramPacket(mSendBuffer, MAXIMUM_PACKET_SIZE);
+            mPacket.setPort(CONNECTION_PORT);
         }
 
         /** disconnect function for manual use */
@@ -157,58 +181,84 @@ public class NetworkStreamer {
 
         @Override
         public void run() {
+            InetAddress inetAddress;
+
+            mKeepAlive = true;
+
             try {
-                mIpAddress = InetAddress.getByName(mIpAddress).getHostAddress();
+                inetAddress = InetAddress.getByName(mIpAddress);
+                mPacket.setAddress(inetAddress);
             } catch (UnknownHostException e) {
                 e.printStackTrace();
+                mKeepAlive = false;
             }
-//          mIpAddress = "192.168.91.194"; // temp for local testing TODO remove this
-            mKeepAlive = true;
 
             while(mKeepAlive) {
                 try {
-                    mSocket = new Socket(mIpAddress, CONNECTION_PORT);
+                    mSocket = new DatagramSocket();
                     if (mEventListener != null)
                         mEventListener.onNetworkConnected();
 
                     Log.d("MyMonitor", "Client connected to server at " + mIpAddress);
 
-                    DataOutputStream outputStream = new DataOutputStream(mSocket.getOutputStream());
+                    /** notify server the start of the connection */
+                    mPacket.setLength(0);
+                    mSocket.send(mPacket);
 
-                    while (mKeepAlive && mSocket.isConnected()) {
+
+                    while (mKeepAlive && !mSocket.isClosed()) {
+
+                        int nData = 0;
+
                         synchronized (mQueueMutex) {
-                            while (!mDataQueue.isEmpty()) {
-                                outputStream.writeShort(mDataQueue.pop());
+                            /** send data in a chunk of 10 or less */
 
-////                                mDataQueue.pop();
-////                                outputStream.writeShort(count++);
+                            nData = Math.min(mDataQueue.size(), 10);
+
+                            for(int i = 0; i < nData; i++){
+                                int bufferIndex = i*2;
+                                short iData = mDataQueue.pop();
+                                mSendBuffer[bufferIndex] = (byte) ((iData >> 8)&0xff);
+                                mSendBuffer[bufferIndex+1] = (byte) (iData &0xff);
                             }
                         }
+
+//                        /** test data continuity */
+//                        nData = MAXIMUM_PACKET_SIZE;
+//                        for (int i = 0; i < nData; i++) {
+//                            int bufferIndex = i * 2;
+//                            short iData = count++;
+//                            mSendBuffer[bufferIndex] = (byte) ((iData >> 8) & 0xff);
+//                            mSendBuffer[bufferIndex + 1] = (byte) (iData & 0xff);
+//                        }
+//                        /** end test data continuity */
+
+//                        mPacket.setData(mSendBuffer);
+                        if (nData > 0){
+                            mPacket.setLength(nData * 2);
+                            mSocket.send(mPacket);
+                        }
+
                         Thread.sleep(DATA_SEND_INTERVAL);
                     }
-
-                    if (mEventListener != null)
-                        mEventListener.onNetworkDisconnected();
-                }catch (SocketException e) {
-                    if(mEventListener!=null)
-                        mEventListener.onNetworkDisconnected();
+                } catch (SocketException e) {
+                    e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+
+                Log.d("MyMonitor", "Client Disconnected");
             }
 
-            try {
-                if(mSocket != null)
-                    mSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            if(mSocket != null)
+                mSocket.close();
+            if(mEventListener!=null)
+                mEventListener.onNetworkDisconnected();
 
             Log.d("MyMonitor", "Client Closed");
         }
-
     }
 
     public NetworkStreamer() {

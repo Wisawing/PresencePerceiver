@@ -1,13 +1,8 @@
 package com.example.panut.presencereceiver;
 
 import android.app.Activity;
-import android.arch.lifecycle.ViewModelProviders;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
 import android.os.Handler;
-import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -58,6 +53,11 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
 
     private SensorConnectionListener mConnectionListener;
 
+    /** parameters for keeping tracks */
+    private Date mLastDataReceivedTime = new Date();
+    private short mLastDataReceived = 0;
+    private SimpleDateFormat mTimeFormat = new SimpleDateFormat("dd:hh:mm:ss");
+
     public int id;
 
 
@@ -96,27 +96,27 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         return mRootView;
     }
 
-    // unused currently auto connect can be done in BleManager
-    public void reconnectDevice(String address) {
-        timeHandler.postDelayed(() -> {
-            final BluetoothManager manager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
-            BluetoothAdapter bluetoothAdapter = manager.getAdapter();
-
-            boolean reconnected = false;
-            Log.d("MyMonitor", "disconnected from : " + address);
-            for(BluetoothDevice iDevice : bluetoothAdapter.getBondedDevices()){
-                Log.d("MyMonitor", "Bonded Device : " + iDevice.getAddress());
-                if(address.compareTo(iDevice.getAddress())==0) {
-//                    Log.d("MyMonitor", "Bonded Device : " + iDevice.getAddress());
-                    connect(iDevice);
-                    reconnected = true;
-                }
-            }
-
-            if(!reconnected)
-                reconnectDevice(address);
-        }, 3000);
-    }
+//    // unused currently auto connect can be done in BleManager
+//    public void reconnectDevice(String address) {
+//        timeHandler.postDelayed(() -> {
+//            final BluetoothManager manager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+//            BluetoothAdapter bluetoothAdapter = manager.getAdapter();
+//
+//            boolean reconnected = false;
+//            Log.d("MyMonitor", "disconnected from : " + address);
+//            for(BluetoothDevice iDevice : bluetoothAdapter.getBondedDevices()){
+//                Log.d("MyMonitor", "Bonded Device : " + iDevice.getAddress());
+//                if(address.compareTo(iDevice.getAddress())==0) {
+////                    Log.d("MyMonitor", "Bonded Device : " + iDevice.getAddress());
+//                    connect(iDevice);
+//                    reconnected = true;
+//                }
+//            }
+//
+//            if(!reconnected)
+//                reconnectDevice(address);
+//        }, 3000);
+//    }
 
     @Override
     public void onDeviceDisconnected(BluetoothDevice device) {
@@ -134,9 +134,8 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
     public void keepMonitorLog(){
 
         timeHandler.postDelayed(() -> {
-            SimpleDateFormat timeFormat =  new SimpleDateFormat("hh:mm:ss");
-
-            Log.d("MyMonitor", timeFormat.format(new Date()));
+            Log.d("MyMonitor", "Last Received Data : " + mLastDataReceived + " , "
+                    + "Last Data Received Time : " + mTimeFormat.format(mLastDataReceivedTime));
             keepMonitorLog();
         }, 30000);
     }
@@ -191,9 +190,9 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
 //        mAudioViewModel.writeAudioBuffer(data.value, id);
         mConnectionListener.onSensorDataRead(data.value, id);
 
-        float fps = (float)count/(currentTime - previousCountResetTime) * 1000000000;
+        float fps = (float)count/timePeriod;
         // fps purpose
-        if(count > 10 && mRootView != null){
+        if(mRootView != null && count % 8 == 0){ // update around 10 fps
             mContext.runOnUiThread(() -> {
                 mDataView.setText(accel_str);
                 mFpsView.setText(fps + "");
@@ -205,5 +204,9 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
             previousCountResetTime = System.nanoTime();
         }
         count++;
+
+        // keep log
+        mLastDataReceivedTime = new Date();
+        mLastDataReceived = data.value[0];
     }
 }
