@@ -27,7 +27,7 @@ public class NetworkStreamer {
 
     public void disconnect() {
         mClientThread.disconnect();
-//        mServerThread.disconnect();
+//        mServerThread.disconnect(); keep the server running
     }
 
     public interface NetworkEventListener {
@@ -71,11 +71,15 @@ public class NetworkStreamer {
                         int nData = mPacket.getLength();
                         short data_s[] = new short[nData/2];
 
+//                        String debug = "";
+
                         /** parse from byte to short */
                         for(int i = 0; i < nData/2; i++){
                             int index = i*2;
                             data_s[i] = (short)(((mReceiveBuffer[index]&0xff)<<8) + (mReceiveBuffer[index+1]&0xff));
+//                            debug += data_s[i] + " ";
                         }
+//                        Log.d("MyMonitor", debug);
 
                         /** test data continuity */
 //                        for(int i = 0; i < nData/2; i++) {

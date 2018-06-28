@@ -14,12 +14,13 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 
 public class AudioOutputControlFragment extends Fragment {
 
     /** any sample rate higher than this will result in audio buffer underrun.
-     * This is because the phone cpu is not fast enough to process all the samples*/
+     * This is speculated to be because the phone cpu is not fast enough to process all the samples*/
     public static final int AUDIO_SAMPLE_RATE = 11200;
 
     private static final int OUTPUT_THREAD_INTERVAL_MS = 10;
@@ -171,6 +172,7 @@ public class AudioOutputControlFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         int bufferSize =  AudioTrack.getMinBufferSize(AUDIO_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+//        Log.d("Monitor", "minBufferSize : " + bufferSize);
         mAudioTrack = new AudioTrack.Builder()
             .setAudioAttributes(new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -186,6 +188,8 @@ public class AudioOutputControlFragment extends Fragment {
 
         mHandler = new Handler();
         mPlayState = PlayState.STOP;
+
+//        Log.d("Monitor", "getBufferSize : " + mAudioTrack.getBufferSizeInFrames());
 
         synchronized (mBufferMutex) {
             outputBuffer = new ArrayList<>();

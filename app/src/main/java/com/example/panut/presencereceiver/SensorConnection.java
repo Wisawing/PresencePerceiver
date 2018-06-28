@@ -39,8 +39,7 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
 
     private int count = -1;
     private long previousCountResetTime = 0;
-    private long previousFrameTime = 0;
-
+//    private long previousFrameTime = 0;
     private final Handler timeHandler = new Handler();
 //    private ConnectionViews mConnectionUI;
     private View mRootView;
@@ -76,7 +75,12 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         mFpsView = mRootView.findViewById(R.id.fps);
         mDisconnectButton = mRootView.findViewById(R.id.disconnect_button);
 
-        mDisconnectButton.setOnClickListener(v -> disconnect());
+        mDisconnectButton.setOnClickListener(v ->  {
+            disconnect();
+
+            timeHandler.removeCallbacksAndMessages(null);
+            mConnectionListener.onSensorDisconnected(this);
+        });
     }
 
     public void setConnectionListener(SensorConnectionListener connectionListener) {
@@ -123,10 +127,6 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
         super.onDeviceDisconnected(device);
 
         Log.d("MyMonitor", "Device Disconnected : " + device.getName());
-
-        timeHandler.removeCallbacksAndMessages(null);
-        mConnectionListener.onSensorDisconnected(this);
-
 //        reconnectDevice(device.getAddress());
 //        mAudioViewModel.removeBuffer(this);
     }
@@ -179,13 +179,12 @@ public class SensorConnection extends BleProfile implements SignalManagerCallbac
     @Override
     public void onAccelDataRead(AccelData data) {
         long currentTime = System.nanoTime();
-        float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
+        float timePeriod = (currentTime - previousCountResetTime) / 1000000000.f; // in second
 
-        previousFrameTime = currentTime;
+//        previousFrameTime = currentTime;
 
         String accel_str;
         accel_str = data.value[0] + " - " + data.value[data.value.length - 1];
-//        accel_str = pData[0] + " - " + pData[pData.length - 1] + " : (" + minValue + " - " + maxValue + ")";
 
 //        mAudioViewModel.writeAudioBuffer(data.value, id);
         mConnectionListener.onSensorDataRead(data.value, id);

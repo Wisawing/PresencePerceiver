@@ -17,6 +17,7 @@ public class OutputControlThread extends Thread {
 
     private final int NUM_DATA_PER_FRAME = 10;
     private short mReadBuffer[] = new short[NUM_DATA_PER_FRAME];
+    private int mBufferCount[] = new int[NUM_DATA_PER_FRAME];
     private static final int DEFAULT_BUFFER_SIZE = 1000;
     private static final int OUTPUT_THREAD_INTERVAL_MS = 10;
 
@@ -148,7 +149,6 @@ public class OutputControlThread extends Thread {
     @Override
     public void run() {
         while (true) {
-            Arrays.fill(mReadBuffer, 0, NUM_DATA_PER_FRAME, (short)0);
 
             int nBuffer;
 
@@ -157,6 +157,8 @@ public class OutputControlThread extends Thread {
             }
 
             if(nBuffer > 0) {
+                Arrays.fill(mReadBuffer, 0, NUM_DATA_PER_FRAME, (short)0);
+                Arrays.fill(mBufferCount, 0, NUM_DATA_PER_FRAME, 0);
 
                 synchronized (bufferLock) {
                     for (HashMap.Entry<Integer, OutputControlThread.LocalBuffer> iBuffer : mLocalBuffers.entrySet()) {
@@ -164,14 +166,18 @@ public class OutputControlThread extends Thread {
 
                         // accumulate from all buffer.
                         for (int i = 0; i < NUM_DATA_PER_FRAME; i++) {
-                            mReadBuffer[i] += buffer[i];
+                            if (buffer[i] != 0) {
+                                mReadBuffer[i] += buffer[i];
+                                mBufferCount[i]++;
+                            }
                         }
                     }
                 }
 
                 // average the data
                 for (int i = 0; i < NUM_DATA_PER_FRAME; i++) {
-                    mReadBuffer[i] /= nBuffer / 3.0f; // blindly amplify
+                    if(mBufferCount[i] > 1)
+                        mReadBuffer[i] /= mBufferCount[i];
                 }
 
                 mNetworkStreamer.sendData(mReadBuffer, NUM_DATA_PER_FRAME);
