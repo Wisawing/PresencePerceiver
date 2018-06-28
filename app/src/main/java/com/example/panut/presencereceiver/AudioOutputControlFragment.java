@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 
 
@@ -31,12 +32,10 @@ public class AudioOutputControlFragment extends Fragment {
     private PlayState mPlayState;
 
     private AudioTrack mAudioTrack;
-
     private Handler mHandler;
 
     public enum PlayState {
         STOP,
-        BUFFER,
         PLAY
     }
 
@@ -64,29 +63,48 @@ public class AudioOutputControlFragment extends Fragment {
     }
 
     private class AudioOutputThread extends Thread {
-        private long previousFrameTime = 0;
+//        private long previousFrameTime = 0;
         private short mWriteBuffer[] = new short[MAX_WRITE_BUFFER_SIZE];
+        private int mWrittenFrame = 0;
+        private long mStartTime = 0;
+        private Object mStartTimeMutex = new Object();
 
-        void startOutput(){
-            previousFrameTime = 0;
-        }
+//        void startOutput(){
+////            previousFrameTime = 0;
+//            synchronized (mStartTimeMutex){
+//                mStartTime = System.nanoTime();
+//                mWrittenFrame = 0;
+//            }
+//        }
 
         @Override
         public void run() {
+            mStartTime = System.nanoTime();
+            mWrittenFrame = 0;
+
             while(true) {
 
                 // calculate sample size
                 long currentTime = System.nanoTime();
-                float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
+//                float timePeriod = (currentTime - previousFrameTime) / 1000000000.f; // in second
 
                 // number of sample according to sample rate
-                int nSample;
-                if (previousFrameTime == 0) { // first time still does not have a time period
-                    nSample = AudioOutputControlFragment.AUDIO_SAMPLE_RATE * OUTPUT_THREAD_INTERVAL_MS / 1000;
-                } else {
-                    nSample = (int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE);
+                int bufferSize;
+
+                synchronized (mAudioTrack) {
+                    bufferSize = mAudioTrack.getBufferSizeInFrames();
                 }
-                previousFrameTime = currentTime;
+
+                int nAllSample = (int)((currentTime - mStartTime)/1000000000.f * AUDIO_SAMPLE_RATE) +
+                                bufferSize * 2; // try to fill up the buffer. * 2 because 16 bits format.
+                int nSample = nAllSample - mWrittenFrame;
+//                int nSample;
+//                if (previousFrameTime == 0) { // first time still does not have a time period
+//                    nSample = AudioOutputControlFragment.AUDIO_SAMPLE_RATE * OUTPUT_THREAD_INTERVAL_MS / 1000;
+//                } else {
+//                    nSample = (int) (timePeriod * AudioOutputControlFragment.AUDIO_SAMPLE_RATE);
+//                }
+//                previousFrameTime = currentTime;
 
                 // make sure it does not go over
                 if (nSample > MAX_WRITE_BUFFER_SIZE)
@@ -102,6 +120,7 @@ public class AudioOutputControlFragment extends Fragment {
                         int prevDataIndex = -1;
                         short value = 0;
 
+//                        String debug = "";
                         for (int i = 0; i < nSample; i++) {
                             dataIndex = (int)dataIndex_d;
 
@@ -127,10 +146,16 @@ public class AudioOutputControlFragment extends Fragment {
 
                             mWriteBuffer[i] = value;
                             dataIndex_d += dataSkipPerSample;
-//                            debugS += mWriteBuffer[i] + ", ";
+//                            debug += mWriteBuffer[i] + ", ";
                         }
+//                        Log.d("MyMonitor", debug);
+
+                        outputBuffer.clear();
                     }
-                    outputBuffer.clear();
+                    // don't fill with zero because this will create noises when when packet drops.
+//                    else { // write zeroes when there is no data.
+//                        Arrays.fill(mWriteBuffer, 0, nSample, (short)0);
+//                    }
                 }
 
 //                // debugging let's try code generated sound first
@@ -150,13 +175,19 @@ public class AudioOutputControlFragment extends Fragment {
                         case STOP:
                             break;
                         case PLAY:
-                        case BUFFER:
-                            int written = mAudioTrack.write(mWriteBuffer, 0, nSample);
+                            int written;
+
+                            synchronized (mAudioTrack) {
+                                written = mAudioTrack.write(mWriteBuffer, 0, nSample);
+                            }
+
                             if(written != nSample){
                                 Log.d("MyMonitor", "Audio Track not correctly written " + written + ":" + nSample);
                             }
                     }
                 }
+
+                mWrittenFrame += nSample;
 
                 try {
                     sleep(OUTPUT_THREAD_INTERVAL_MS);
@@ -194,9 +225,6 @@ public class AudioOutputControlFragment extends Fragment {
         synchronized (mBufferMutex) {
             outputBuffer = new ArrayList<>();
         }
-
-        mAudioOutputThread = new AudioOutputThread();
-        mAudioOutputThread.start();
     }
 
 
@@ -216,6 +244,20 @@ public class AudioOutputControlFragment extends Fragment {
 //
 //    }
 
+
+
+    private void play() {
+        mPlayPauseButton.setImageResource(R.drawable.pause);
+        mPlayState = PlayState.PLAY;
+        synchronized (mAudioTrack) {
+            mAudioTrack.play();
+        }
+//                        mAudioOutputThread.startOutput();
+//                    mNetworkOutput.startOutput();
+
+        Log.d("MyMonitor", "PLAY PRESSED");
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -227,20 +269,15 @@ public class AudioOutputControlFragment extends Fragment {
             synchronized (mStateMutex) {
                 switch (mPlayState) {
                     case STOP:
-                        mPlayPauseButton.setImageResource(R.drawable.pause);
-                        mPlayState = PlayState.PLAY;
-
-                        mAudioTrack.play();
-                        mAudioOutputThread.startOutput();
-//                    mNetworkOutput.startOutput();
-
-                        Log.d("MyMonitor", "PLAY PRESSED");
+                        play();
                         break;
                     case PLAY:
-                    case BUFFER:
+//                    case BUFFER:
                         mPlayPauseButton.setImageResource(R.drawable.play);
-                        mAudioTrack.pause();
-                        mAudioTrack.flush();
+                        synchronized (mAudioTrack) {
+                            mAudioTrack.pause();
+                            mAudioTrack.flush();
+                        }
                         mHandler.removeCallbacks(null);
                         mPlayState = PlayState.STOP;
 
@@ -248,6 +285,10 @@ public class AudioOutputControlFragment extends Fragment {
                 }
             }
         });
+
+        play();
+        mAudioOutputThread = new AudioOutputThread();
+        mAudioOutputThread.start();
 
         return view;
     }
